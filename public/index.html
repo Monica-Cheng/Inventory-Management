@@ -4,252 +4,27 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Inventory Dashboard</title>
-    <style>
-        :root {
-            --bg: #0f172a;
-            --card: #111827;
-            --accent: #22d3ee;
-            --accent-2: #a855f7;
-            --text: #e2e8f0;
-            --muted: #94a3b8;
-            --stroke: #1f2937;
-        }
-        * { box-sizing: border-box; }
-        body {
-            margin: 0;
-            font-family: "Segoe UI", "Inter", system-ui, -apple-system, sans-serif;
-            background: radial-gradient(circle at 20% 20%, #0b1224, #0f172a 40%),
-                        radial-gradient(circle at 80% 0%, #0d1222, #0f172a 45%),
-                        radial-gradient(circle at 60% 80%, #101b34, #0f172a 50%);
-            color: var(--text);
-            min-height: 100vh;
-        }
-        .shell {
-            max-width: 1100px;
-            margin: 40px auto 60px;
-            padding: 0 20px;
-        }
-        header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 16px;
-            margin-bottom: 18px;
-        }
-        h1 {
-            margin: 0;
-            font-weight: 700;
-            letter-spacing: 0.5px;
-        }
-        .tag {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            padding: 6px 10px;
-            border-radius: 999px;
-            background: rgba(34, 211, 238, 0.1);
-            color: var(--accent);
-            font-size: 12px;
-            text-transform: uppercase;
-            letter-spacing: 0.6px;
-            border: 1px solid rgba(34, 211, 238, 0.25);
-        }
-        .row {
-            display: grid;
-            grid-template-columns: 2fr 1.2fr;
-            gap: 16px;
-        }
-        .card {
-            background: linear-gradient(145deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0));
-            border: 1px solid var(--stroke);
-            border-radius: 14px;
-            padding: 16px;
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
-        }
-        .stats {
-            display: grid;
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-            gap: 10px;
-        }
-        .stat {
-            background: var(--card);
-            border-radius: 12px;
-            padding: 12px;
-            border: 1px solid var(--stroke);
-        }
-        .stat .label { color: var(--muted); font-size: 12px; }
-        .stat .value { font-size: 22px; font-weight: 700; margin-top: 4px; }
-        .toolbar {
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-            margin-bottom: 12px;
-        }
-        input, select, button {
-            background: #0b1222;
-            border: 1px solid var(--stroke);
-            color: var(--text);
-            border-radius: 10px;
-            padding: 10px 12px;
-            font-size: 14px;
-        }
-        input:focus, select:focus { outline: 1px solid var(--accent); }
-        button {
-            cursor: pointer;
-            background: linear-gradient(135deg, var(--accent), var(--accent-2));
-            border: none;
-            color: #0b1222;
-            font-weight: 700;
-            box-shadow: 0 10px 20px rgba(34, 211, 238, 0.25);
-            transition: transform 120ms ease, box-shadow 120ms ease;
-        }
-        button:hover { transform: translateY(-1px); box-shadow: 0 12px 24px rgba(34, 211, 238, 0.3); }
-        table { width: 100%; border-collapse: collapse; }
-        th, td { padding: 10px 8px; text-align: left; font-size: 14px; }
-        th { color: var(--muted); font-weight: 600; border-bottom: 1px solid var(--stroke); }
-        tr + tr td { border-top: 1px solid var(--stroke); }
-        .badge { padding: 4px 8px; border-radius: 8px; font-size: 12px; font-weight: 600; display: inline-block; }
-        .badge.in { background: rgba(34, 197, 94, 0.15); color: #4ade80; border: 1px solid rgba(74, 222, 128, 0.4); }
-        .badge.low { background: rgba(234, 179, 8, 0.15); color: #facc15; border: 1px solid rgba(250, 204, 21, 0.4); }
-        .badge.out { background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(248, 113, 113, 0.4); }
-        .small { color: var(--muted); font-size: 12px; }
-        .form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
-        @media (max-width: 900px) { .row { grid-template-columns: 1fr; } }
-        @media (max-width: 640px) {
-            header { flex-direction: column; align-items: flex-start; }
-            .stats { grid-template-columns: repeat(2, 1fr); }
-            .form-grid { grid-template-columns: 1fr; }
-            th, td { font-size: 13px; }
-        }
-    </style>
+    <link rel="stylesheet" href="./css/style.css">
 </head>
 <body>
     <div class="shell">
         <header>
+            <!-- Inventory inspiration strip -->
+            <div class="image-strip">
+                <img src="https://images.unsplash.com/photo-1515168833906-d2a3b82b302a?auto=format&fit=crop&w=400&q=80" alt="Inventory shelves">
+                <img src="https://images.unsplash.com/photo-1585386959984-a4155224a1ad?auto=format&fit=crop&w=400&q=80" alt="Stock management">
+                <img src="https://images.unsplash.com/photo-1506629082955-511b1aa562c8?auto=format&fit=crop&w=400&q=80" alt="Boxes in warehouse">
+            </div>
             <div>
-                <div class="tag">Inventory</div>
-                <h1>Simple Stock Overview</h1>
-                <p class="small">Sample data + quick add form. Everything stays on this page.</p>
+                <h1>Personalize and Orchestrate Your Inventory</h1>
+                <!-- Centered onboarding CTAs -->
+                <div class="cta-group">
+                    <button class="cta-button primary" type="button">Start now</button>
+                    <button class="cta-button support" type="button">Customer support</button>
+                    <button class="cta-button ghost" type="button">Request a demo</button>
+                </div>
             </div>
         </header>
-
-        <div class="row">
-            <div class="card">
-                <div class="toolbar">
-                    <input id="search" type="search" placeholder="Search name, category, location..." />
-                    <select id="filterStatus">
-                        <option value="">All status</option>
-                        <option value="in">In Stock</option>
-                        <option value="low">Low Stock</option>
-                        <option value="out">Out of Stock</option>
-                    </select>
-                </div>
-                <div class="stats" id="stats"></div>
-                <table>
-                    <thead>
-                        <tr>
-                            <th>SKU</th>
-                            <th>Item</th>
-                            <th>Category</th>
-                            <th>Location</th>
-                            <th>Qty</th>
-                            <th>Status</th>
-                        </tr>
-                    </thead>
-                    <tbody id="inventory"></tbody>
-                </table>
-            </div>
-
-            <div class="card">
-                <h3 style="margin-top:0;">Add an item</h3>
-                <div class="form-grid">
-                    <input id="sku" placeholder="SKU" />
-                    <input id="name" placeholder="Name" />
-                    <input id="category" placeholder="Category" />
-                    <input id="location" placeholder="Location" />
-                    <input id="qty" type="number" min="0" placeholder="Quantity" />
-                    <select id="status">
-                        <option value="in">In Stock</option>
-                        <option value="low">Low Stock</option>
-                        <option value="out">Out of Stock</option>
-                    </select>
-                </div>
-                <button style="margin-top:12px; width:100%;" onclick="addItem()">Add</button>
-                <p class="small" style="margin-top:10px;">Data is kept in memory for demo purposes.</p>
-            </div>
-        </div>
     </div>
-
-    <script>
-        const data = [
-            { id: "A-100", name: "Laptop 14\"", category: "Electronics", qty: 12, location: "Aisle 1", status: "in" },
-            { id: "A-101", name: "Wireless Mouse", category: "Accessories", qty: 4, location: "Aisle 1", status: "low" },
-            { id: "B-210", name: "Desk Chair", category: "Furniture", qty: 0, location: "Aisle 3", status: "out" },
-            { id: "C-033", name: "LED Bulbs", category: "Hardware", qty: 38, location: "Aisle 5", status: "in" },
-            { id: "D-077", name: "Shipping Boxes", category: "Supplies", qty: 6, location: "Backroom", status: "low" }
-        ];
-
-        const elInventory = document.getElementById("inventory");
-        const elStats = document.getElementById("stats");
-        const elSearch = document.getElementById("search");
-        const elFilter = document.getElementById("filterStatus");
-
-        function badge(status) {
-            const map = { in: "badge in", low: "badge low", out: "badge out" };
-            const label = { in: "In Stock", low: "Low", out: "Out" };
-            return `<span class="${map[status]}">${label[status]}</span>`;
-        }
-
-        function updateStats(items) {
-            const total = items.reduce((s, i) => s + i.qty, 0);
-            const low = items.filter(i => i.status === "low").length;
-            const out = items.filter(i => i.status === "out").length;
-            elStats.innerHTML = `
-                <div class="stat"><div class="label">Total units</div><div class="value">${total}</div></div>
-                <div class="stat"><div class="label">Low stock</div><div class="value">${low}</div></div>
-                <div class="stat"><div class="label">Out of stock</div><div class="value">${out}</div></div>
-            `;
-        }
-
-        function render() {
-            const q = elSearch.value.trim().toLowerCase();
-            const f = elFilter.value;
-            const filtered = data.filter(item => {
-                const matchText = `${item.id} ${item.name} ${item.category} ${item.location}`.toLowerCase().includes(q);
-                const matchStatus = f ? item.status === f : true;
-                return matchText && matchStatus;
-            });
-            updateStats(filtered);
-            elInventory.innerHTML = filtered.map(item => `
-                <tr>
-                    <td>${item.id}</td>
-                    <td>${item.name}</td>
-                    <td>${item.category}</td>
-                    <td>${item.location}</td>
-                    <td>${item.qty}</td>
-                    <td>${badge(item.status)}</td>
-                </tr>
-            `).join("");
-        }
-
-        function addItem() {
-            const sku = document.getElementById("sku").value.trim();
-            const name = document.getElementById("name").value.trim();
-            const category = document.getElementById("category").value.trim();
-            const location = document.getElementById("location").value.trim();
-            const qty = Number(document.getElementById("qty").value || 0);
-            const status = document.getElementById("status").value;
-
-            if (!sku || !name) { alert("SKU and Name are required"); return; }
-            data.push({ id: sku, name, category: category || "-", location: location || "-", qty, status });
-            document.querySelectorAll("input").forEach(el => el.value = "");
-            document.getElementById("status").value = "in";
-            render();
-        }
-
-        elSearch.addEventListener("input", render);
-        elFilter.addEventListener("change", render);
-        render();
-    </script>
 </body>
 </html>
