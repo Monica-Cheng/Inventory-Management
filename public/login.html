@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login | Inventory</title>
+  <link rel="stylesheet" href="./css/login.css">
+</head>
+<body>
+  <div class="page">
+    <div class="panel hero">
+      <p class="eyebrow">Welcome back</p>
+      <h1>Sign in to manage inventory</h1>
+      <p class="subtext">Access products, orders, and team assignments from one place.</p>
+      <div class="chips">
+        <span>Secure</span>
+        <span>Fast</span>
+        <span>Team-ready</span>
+      </div>
+      <a class="ghost-link" href="/register.html">New here? Register</a>
+    </div>
+
+    <div class="panel form-panel">
+      <div class="header">
+        <p class="badge">Login</p>
+        <h2>Sign in</h2>
+        <p class="hint">Use your phone number and password.</p>
+      </div>
+
+      <form id="loginForm" class="form">
+        <div class="toggle-row">
+          <span class="toggle-label">Login with:</span>
+          <div class="toggle-buttons">
+            <button type="button" class="toggle active" data-mode="user_id">User ID</button>
+            <button type="button" class="toggle" data-mode="phone">Phone</button>
+          </div>
+        </div>
+
+        <label data-field="user_id">
+          <span>User ID</span>
+          <input type="text" name="user_id" placeholder="Enter your user ID" maxlength="64">
+        </label>
+
+        <label data-field="phone_number" style="display:none">
+          <span>Phone number</span>
+          <input type="tel" name="phone_number" placeholder="ex: +86 139 0000 0000">
+        </label>
+
+        <label>
+          <span>Password</span>
+          <input type="password" name="password" placeholder="Your password" required>
+        </label>
+
+        <button type="submit" class="primary">Login</button>
+        <p id="status" class="status" role="status" aria-live="polite"></p>
+        <p class="muted-link">No account? <a href="/register.html">Register here</a></p>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    const form = document.getElementById('loginForm');
+    const statusEl = document.getElementById('status');
+    const toggles = document.querySelectorAll('.toggle');
+    const userField = document.querySelector('[data-field="user_id"]');
+    const phoneField = document.querySelector('[data-field="phone_number"]');
+    let mode = 'user_id';
+
+    toggles.forEach((btn) => {
+      btn.addEventListener('click', () => {
+        mode = btn.dataset.mode;
+        toggles.forEach((b) => b.classList.toggle('active', b === btn));
+        if (mode === 'user_id') {
+          userField.style.display = '';
+          phoneField.style.display = 'none';
+        } else {
+          userField.style.display = 'none';
+          phoneField.style.display = '';
+        }
+        statusEl.textContent = '';
+        statusEl.className = 'status';
+      });
+    });
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      statusEl.textContent = 'Signing in...';
+      statusEl.className = 'status pending';
+
+      const userId = form.user_id.value.trim();
+      const phone = form.phone_number.value.trim();
+
+      const payload = {
+        user_id: mode === 'user_id' ? userId || undefined : undefined,
+        phone_number: mode === 'phone' ? phone || undefined : undefined,
+        password: form.password.value,
+      };
+
+      if (mode === 'user_id' && !payload.user_id) {
+        statusEl.textContent = 'Please enter user ID';
+        statusEl.className = 'status error';
+        return;
+      }
+      if (mode === 'phone' && !payload.phone_number) {
+        statusEl.textContent = 'Please enter phone number';
+        statusEl.className = 'status error';
+        return;
+      }
+
+      try {
+        const resp = await fetch('/api/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+
+        let result;
+        try {
+          result = await resp.clone().json();
+        } catch (_) {
+          const text = await resp.text();
+          throw new Error(text || 'Server returned a non-JSON response');
+        }
+
+        if (!resp.ok) throw new Error(result.error || 'Login failed');
+
+        statusEl.textContent = `Welcome ${result.user.user_name} (ID: ${result.user.id})`;
+        statusEl.className = 'status success';
+        form.reset();
+      } catch (err) {
+        statusEl.textContent = err.message;
+        statusEl.className = 'status error';
+      }
+    });
+  </script>
+</body>
+</html>
