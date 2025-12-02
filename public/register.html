@@ -29,6 +29,19 @@
 
       <form id="registerForm" class="form">
         <label>
+          <span>Account type</span>
+          <select name="role" id="roleSelect" required>
+            <option value="admin">Admin</option>
+            <option value="staff">Staff</option>
+          </select>
+        </label>
+
+        <label id="adminField" style="display:none">
+          <span>Admin ID (required for staff)</span>
+          <input type="text" name="admin_id" maxlength="64" placeholder="The admin this staff belongs to">
+        </label>
+
+        <label>
           <span>User ID (optional, supports letters/numbers)</span>
           <input type="text" name="user_id" maxlength="64" placeholder="Leave empty to auto-generate">
         </label>
@@ -48,14 +61,6 @@
           <input type="password" name="password" placeholder="Minimum 6 characters" minlength="6" required>
         </label>
 
-        <label>
-          <span>Role</span>
-          <select name="role" required>
-            <option value="admin">Admin</option>
-            <option value="staff">Staff</option>
-          </select>
-        </label>
-
         <button type="submit" class="primary">Create account</button>
         <p id="status" class="status" role="status" aria-live="polite"></p>
         <p class="muted-link">Have an account? <a href="/login.html">Login here</a></p>
@@ -66,6 +71,15 @@
   <script>
     const form = document.getElementById('registerForm');
     const statusEl = document.getElementById('status');
+    const roleSelect = document.getElementById('roleSelect');
+    const adminField = document.getElementById('adminField');
+
+    const toggleAdminField = () => {
+      const isStaff = roleSelect.value === 'staff';
+      adminField.style.display = isStaff ? '' : 'none';
+    };
+    roleSelect.addEventListener('change', toggleAdminField);
+    toggleAdminField();
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -77,8 +91,15 @@
         user_name: form.user_name.value.trim(),
         phone_number: form.phone_number.value.trim(),
         password: form.password.value,
-        role: form.role.value,
+        role: roleSelect.value,
+        admin_id: form.admin_id.value ? form.admin_id.value.trim() : undefined,
       };
+
+      if (payload.role === 'staff' && !payload.admin_id) {
+        statusEl.textContent = 'Admin ID is required for staff';
+        statusEl.className = 'status error';
+        return;
+      }
 
       try {
         const resp = await fetch('/api/register', {
@@ -93,6 +114,7 @@
         statusEl.textContent = `Registered successfully. User ID: ${result.userId}`;
         statusEl.className = 'status success';
         form.reset();
+        toggleAdminField();
       } catch (err) {
         statusEl.textContent = err.message;
         statusEl.className = 'status error';

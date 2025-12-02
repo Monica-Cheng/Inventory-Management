@@ -36,6 +36,15 @@
           </div>
         </div>
 
+        <div class="toggle-row">
+          <span class="toggle-label">Account type:</span>
+          <div class="toggle-buttons pill">
+            <button type="button" class="toggle active" data-role="admin">Admin</button>
+            <button type="button" class="toggle" data-role="staff">Staff</button>
+          </div>
+        </div>
+        <input type="hidden" name="role" id="roleInput" value="admin">
+
         <label data-field="user_id">
           <span>User ID</span>
           <input type="text" name="user_id" placeholder="Enter your user ID" maxlength="64">
@@ -61,15 +70,18 @@
   <script>
     const form = document.getElementById('loginForm');
     const statusEl = document.getElementById('status');
-    const toggles = document.querySelectorAll('.toggle');
+    const modeToggles = document.querySelectorAll('[data-mode]');
+    const roleToggles = document.querySelectorAll('[data-role]');
     const userField = document.querySelector('[data-field="user_id"]');
     const phoneField = document.querySelector('[data-field="phone_number"]');
+    const roleInput = document.getElementById('roleInput');
     let mode = 'user_id';
+    let role = 'admin';
 
-    toggles.forEach((btn) => {
+    modeToggles.forEach((btn) => {
       btn.addEventListener('click', () => {
         mode = btn.dataset.mode;
-        toggles.forEach((b) => b.classList.toggle('active', b === btn));
+        modeToggles.forEach((b) => b.classList.toggle('active', b === btn));
         if (mode === 'user_id') {
           userField.style.display = '';
           phoneField.style.display = 'none';
@@ -77,6 +89,16 @@
           userField.style.display = 'none';
           phoneField.style.display = '';
         }
+        statusEl.textContent = '';
+        statusEl.className = 'status';
+      });
+    });
+
+    roleToggles.forEach((btn) => {
+      btn.addEventListener('click', () => {
+        role = btn.dataset.role;
+        roleInput.value = role;
+        roleToggles.forEach((b) => b.classList.toggle('active', b === btn));
         statusEl.textContent = '';
         statusEl.className = 'status';
       });
@@ -94,6 +116,7 @@
         user_id: mode === 'user_id' ? userId || undefined : undefined,
         phone_number: mode === 'phone' ? phone || undefined : undefined,
         password: form.password.value,
+        role,
       };
 
       if (mode === 'user_id' && !payload.user_id) {
@@ -127,6 +150,10 @@
         statusEl.textContent = `Welcome ${result.user.user_name} (ID: ${result.user.id})`;
         statusEl.className = 'status success';
         form.reset();
+
+        if (role === 'admin') {
+          window.location.href = '/admin/dashboard.html';
+        }
       } catch (err) {
         statusEl.textContent = err.message;
         statusEl.className = 'status error';

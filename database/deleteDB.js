@@ -7,7 +7,7 @@ async function dropTables() {
     console.log(`Connected to ${DB_NAME} for table cleanup`);
 
     // Drop in dependency-safe order
-    const tables = ['order_item', '`order`', 'product', '`user`'];
+    const tables = ['order_item', '`order`', 'product', 'category', 'staff', 'admin'];
     for (const name of tables) {
       const displayName = name.replace(/`/g, '');
       await db.query(`DROP TABLE IF EXISTS ${name}`);

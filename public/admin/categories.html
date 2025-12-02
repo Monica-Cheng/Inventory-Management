@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Categories</title>
+  <link rel="stylesheet" href="/css/admin-dashboard.css">
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="brand">Inventory Admin</div>
+      <nav>
+        <a href="/admin/dashboard.html">Dashboard</a>
+        <a class="active" href="/admin/categories.html">Categories</a>
+        <a href="/admin/products.html">Products</a>
+        <a href="/login.html">Logout</a>
+      </nav>
+    </aside>
+
+    <main class="content">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Manage</p>
+          <h1>Categories</h1>
+        </div>
+        <a class="ghost" href="/admin/dashboard.html">Back to dashboard</a>
+      </header>
+
+      <section class="panel">
+        <h3>Create category</h3>
+        <form id="categoryForm" class="form">
+          <div class="field-row">
+            <label class="floating">
+              <span>Name</span>
+              <input type="text" name="name" placeholder="Category name" required>
+            </label>
+            <label class="floating">
+              <span>Description</span>
+              <input type="text" name="description" placeholder="Optional description">
+            </label>
+          </div>
+          <button type="submit" class="primary">Create</button>
+          <p id="status" class="muted"></p>
+        </form>
+      </section>
+
+      <section class="panel">
+        <h3>Your categories</h3>
+        <div id="categoriesList" class="list"></div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const form = document.getElementById('categoryForm');
+    const statusEl = document.getElementById('status');
+    const listEl = document.getElementById('categoriesList');
+
+    async function fetchCategories() {
+      listEl.innerHTML = '<p class="muted">Loading...</p>';
+      try {
+        const resp = await fetch('/api/admin/categories');
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.error || 'Failed to load categories');
+        if (!data.items.length) {
+          listEl.innerHTML = '<p class="muted">No categories yet.</p>';
+          return;
+        }
+        listEl.innerHTML = data.items
+          .map(
+            (c) => `
+              <div class="list-item">
+                <div>
+                  <p class="label">${c.name}</p>
+                  <p class="muted">${c.description || 'No description'}</p>
+                </div>
+              </div>
+            `
+          )
+          .join('');
+      } catch (err) {
+        listEl.innerHTML = `<p class="error">${err.message}</p>`;
+      }
+    }
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      statusEl.textContent = 'Creating...';
+      try {
+        const payload = {
+          name: form.name.value.trim(),
+          description: form.description.value.trim(),
+        };
+        const resp = await fetch('/api/admin/categories', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.error || 'Failed to create');
+        statusEl.textContent = 'Created!';
+        form.reset();
+        fetchCategories();
+      } catch (err) {
+        statusEl.textContent = err.message;
+        statusEl.className = 'error';
+      }
+    });
+
+    fetchCategories();
+  </script>
+</body>
+</html>

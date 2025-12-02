@@ -1,40 +1,69 @@
 const crypto = require('crypto');
 const { query } = require('../db/connection');
 
-async function findByPhone(phoneNumber) {
-  const rows = await query('SELECT id, user_name, phone_number, role FROM `user` WHERE phone_number = ? LIMIT 1', [
-    phoneNumber,
-  ]);
-  return rows[0];
+function tableFor(role) {
+  if (role === 'admin') return 'admin';
+  if (role === 'staff') return 'staff';
+  throw new Error('Unknown role');
 }
 
-async function findById(id) {
-  const rows = await query('SELECT id, user_name, phone_number, role FROM `user` WHERE id = ? LIMIT 1', [id]);
-  return rows[0];
-}
-
-async function findWithPasswordById(id) {
-  const rows = await query('SELECT id, user_name, phone_number, password, role FROM `user` WHERE id = ? LIMIT 1', [id]);
-  return rows[0];
-}
-
-async function findWithPasswordByPhone(phoneNumber) {
+async function findByPhone(role, phoneNumber) {
+  const table = tableFor(role);
   const rows = await query(
-    'SELECT id, user_name, phone_number, password, role FROM `user` WHERE phone_number = ? LIMIT 1',
+    `SELECT id, name AS user_name, phone_number, '${role}' AS role FROM ${table} WHERE phone_number = ? LIMIT 1`,
     [phoneNumber]
   );
   return rows[0];
 }
 
-async function createUser({ id, user_name, phone_number, password, role }) {
+async function findById(role, id) {
+  const table = tableFor(role);
+  const rows = await query(
+    `SELECT id, name AS user_name, phone_number, '${role}' AS role FROM ${table} WHERE id = ? LIMIT 1`,
+    [id]
+  );
+  return rows[0];
+}
+
+async function findWithPasswordById(role, id) {
+  const table = tableFor(role);
+  const rows = await query(
+    `SELECT id, name AS user_name, phone_number, password, '${role}' AS role FROM ${table} WHERE id = ? LIMIT 1`,
+    [id]
+  );
+  return rows[0];
+}
+
+async function findWithPasswordByPhone(role, phoneNumber) {
+  const table = tableFor(role);
+  const rows = await query(
+    `SELECT id, name AS user_name, phone_number, password, '${role}' AS role FROM ${table} WHERE phone_number = ? LIMIT 1`,
+    [phoneNumber]
+  );
+  return rows[0];
+}
+
+async function createUser({ role, id, name, phone_number, password, admin_id }) {
+  const table = tableFor(role);
   const finalId = id || crypto.randomBytes(16).toString('hex');
-  await query('INSERT INTO `user` (id, user_name, phone_number, password, role) VALUES (?, ?, ?, ?, ?)', [
-    finalId,
-    user_name,
-    phone_number,
-    password,
-    role,
-  ]);
+
+  if (role === 'admin') {
+    await query(`INSERT INTO admin (id, name, phone_number, password) VALUES (?, ?, ?, ?)`, [
+      finalId,
+      name,
+      phone_number,
+      password,
+    ]);
+  } else {
+    await query(`INSERT INTO staff (id, admin_id, name, phone_number, password) VALUES (?, ?, ?, ?, ?)`, [
+      finalId,
+      admin_id,
+      name,
+      phone_number,
+      password,
+    ]);
+  }
+
   return finalId;
 }
 

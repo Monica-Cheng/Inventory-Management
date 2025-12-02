@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Products</title>
+  <link rel="stylesheet" href="/css/admin-dashboard.css">
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="brand">Inventory Admin</div>
+      <nav>
+        <a href="/admin/dashboard.html">Dashboard</a>
+        <a href="/admin/categories.html">Categories</a>
+        <a class="active" href="/admin/products.html">Products</a>
+        <a href="/login.html">Logout</a>
+      </nav>
+    </aside>
+
+    <main class="content">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Manage</p>
+          <h1>Products</h1>
+        </div>
+        <a class="ghost" href="/admin/dashboard.html">Back to dashboard</a>
+      </header>
+
+      <section class="panel">
+        <h3>Create product</h3>
+        <form id="productForm" class="form">
+          <div class="field-row">
+            <label class="floating">
+              <span>Name</span>
+              <input type="text" name="name" placeholder="Product name" required>
+            </label>
+            <label class="floating">
+              <span>Description</span>
+              <input type="text" name="description" placeholder="Optional description">
+            </label>
+            <label class="floating">
+              <span>Quantity</span>
+              <input type="number" name="quantity" min="0" value="0" placeholder="0">
+            </label>
+          </div>
+          <button type="submit" class="primary">Create</button>
+          <p id="status" class="muted"></p>
+        </form>
+      </section>
+
+      <section class="panel">
+        <h3>Your products</h3>
+        <div id="productsList" class="list"></div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const form = document.getElementById('productForm');
+    const statusEl = document.getElementById('status');
+    const listEl = document.getElementById('productsList');
+
+    function renderProducts(items) {
+      if (!items.length) {
+        listEl.innerHTML = '<p class="muted">No products yet.</p>';
+        return;
+      }
+      listEl.innerHTML = items
+        .map(
+          (p) => `
+            <div class="list-item">
+              <div class="list-header">
+                <div>
+                  <p class="label">${p.name}</p>
+                  <p class="muted">${p.description || 'No description'}</p>
+                </div>
+              </div>
+              <div class="qty-row">
+                <label>
+                  <span>Quantity</span>
+                  <input type="number" min="0" value="${p.quantity}" data-id="${p.id}" class="qty-input">
+                </label>
+                <button class="primary small" data-action="save" data-id="${p.id}">Save</button>
+              </div>
+            </div>
+          `
+        )
+        .join('');
+    }
+
+    async function fetchProducts() {
+      listEl.innerHTML = '<p class="muted">Loading...</p>';
+      try {
+        const resp = await fetch('/api/admin/products');
+        if (resp.status === 401) {
+          window.location.href = '/login.html';
+          return;
+        }
+        let data;
+        try {
+          data = await resp.clone().json();
+        } catch (_) {
+          const text = await resp.text();
+          throw new Error(text || 'Server returned a non-JSON response');
+        }
+        if (!resp.ok) throw new Error(data.error || 'Failed to load products');
+        renderProducts(data.items);
+      } catch (err) {
+        listEl.innerHTML = `<p class="error">${err.message}</p>`;
+      }
+    }
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      statusEl.textContent = 'Creating...';
+      try {
+        const payload = {
+          name: form.name.value.trim(),
+          description: form.description.value.trim(),
+          quantity: Number(form.quantity.value || 0),
+        };
+        const resp = await fetch('/api/admin/products', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        if (resp.status === 401) {
+          window.location.href = '/login.html';
+          return;
+        }
+        let data;
+        try {
+          data = await resp.clone().json();
+        } catch (_) {
+          const text = await resp.text();
+          throw new Error(text || 'Server returned a non-JSON response');
+        }
+        if (!resp.ok) throw new Error(data.error || 'Failed to create');
+        statusEl.textContent = 'Created!';
+        form.reset();
+        form.quantity.value = 0;
+        fetchProducts();
+      } catch (err) {
+        statusEl.textContent = err.message;
+        statusEl.className = 'error';
+      }
+    });
+
+    listEl.addEventListener('click', async (e) => {
+      const btn = e.target.closest('[data-action="save"]');
+      if (!btn) return;
+      const id = btn.dataset.id;
+      const input = listEl.querySelector(`.qty-input[data-id="${id}"]`);
+      const qty = Number(input.value);
+      btn.textContent = 'Saving...';
+      try {
+        const resp = await fetch(`/api/admin/products/${id}/quantity`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ quantity: qty }),
+        });
+        if (resp.status === 401) {
+          window.location.href = '/login.html';
+          return;
+        }
+        let data;
+        try {
+          data = await resp.clone().json();
+        } catch (_) {
+          const text = await resp.text();
+          throw new Error(text || 'Server returned a non-JSON response');
+        }
+        if (!resp.ok) throw new Error(data.error || 'Failed to update');
+        btn.textContent = 'Saved';
+        setTimeout(() => (btn.textContent = 'Save'), 1200);
+      } catch (err) {
+        btn.textContent = 'Save';
+        alert(err.message);
+      }
+    });
+
+    fetchProducts();
+  </script>
+</body>
+</html>

@@ -1,9 +1,13 @@
 const { findWithPasswordByPhone, findWithPasswordById } = require('../repositories/userRepository');
+const { createSession } = require('../auth/sessionStore');
 
 async function login(req, res) {
-  const { phone_number, password, user_id } = req.body;
+  const { phone_number, password, user_id, role } = req.body;
   if (!password || (!phone_number && !user_id)) {
     return res.status(400).json({ error: 'Provide password plus either user_id or phone_number' });
+  }
+  if (!['admin', 'staff'].includes(role)) {
+    return res.status(400).json({ error: 'role must be admin or staff' });
   }
 
   try {
@@ -12,9 +16,9 @@ async function login(req, res) {
 
     let user;
     if (trimmedId) {
-      user = await findWithPasswordById(trimmedId);
+      user = await findWithPasswordById(role, trimmedId);
     } else if (trimmedPhone) {
-      user = await findWithPasswordByPhone(trimmedPhone);
+      user = await findWithPasswordByPhone(role, trimmedPhone);
     }
 
     if (!user || user.password !== password) {
@@ -22,6 +26,17 @@ async function login(req, res) {
     }
 
     const { password: _, ...safeUser } = user;
+
+    // only admins get a session for dashboard access
+    if (role === 'admin') {
+      const token = createSession({ ...safeUser, role });
+      res.cookie('admin_token', token, {
+        httpOnly: true,
+        sameSite: 'lax',
+        maxAge: 1000 * 60 * 60 * 24, // 1 day
+      });
+    }
+
     return res.status(200).json({ message: 'Login successful', user: safeUser });
   } catch (err) {
     console.error('Login failed:', err);

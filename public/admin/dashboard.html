@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Dashboard</title>
+  <link rel="stylesheet" href="/css/admin-dashboard.css">
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="brand">Inventory Admin</div>
+      <nav>
+        <a class="active" href="/admin/dashboard.html">Dashboard</a>
+        <a href="/admin/categories.html">Categories</a>
+        <a href="/admin/products.html">Products</a>
+        <a href="/login.html">Logout</a>
+      </nav>
+    </aside>
+
+    <main class="content">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Overview</p>
+          <h1>Welcome, Admin</h1>
+        </div>
+        <a class="ghost" href="/register.html">Invite staff</a>
+      </header>
+
+      <section class="cards" id="stats">
+        <div class="card">
+          <p class="label">Products</p>
+          <h2 id="stat-products">–</h2>
+        </div>
+        <div class="card">
+          <p class="label">Orders</p>
+          <h2 id="stat-orders">–</h2>
+        </div>
+        <div class="card">
+          <p class="label">Staff</p>
+          <h2 id="stat-staff">–</h2>
+        </div>
+      </section>
+
+      <section class="panel" id="status">
+        <p class="muted">Loading dashboard...</p>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    async function loadStats() {
+      const status = document.getElementById('status');
+      try {
+        const resp = await fetch('/api/admin/dashboard');
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.error || 'Failed to load dashboard');
+        document.getElementById('stat-products').textContent = data.stats.products;
+        document.getElementById('stat-orders').textContent = data.stats.orders;
+        document.getElementById('stat-staff').textContent = data.stats.staff;
+        status.innerHTML = '<p class="muted">Data loaded</p>';
+      } catch (err) {
+        status.innerHTML = `<p class="error">${err.message}</p>`;
+      }
+    }
+    loadStats();
+  </script>
+</body>
+</html>
