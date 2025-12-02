@@ -14,6 +14,8 @@
         <a href="/admin/dashboard.html">Dashboard</a>
         <a href="/admin/categories.html">Categories</a>
         <a class="active" href="/admin/products.html">Products</a>
+        <a href="/admin/orders.html">Orders</a>
+        <a href="/admin/staff.html">Staff</a>
         <a href="/login.html">Logout</a>
       </nav>
     </aside>
@@ -43,9 +45,16 @@
               <span>Quantity</span>
               <input type="number" name="quantity" min="0" value="0" placeholder="0">
             </label>
+            <label class="floating">
+              <span>Category</span>
+              <select name="category_id" id="categorySelect" required>
+                <option value="">Loading...</option>
+              </select>
+            </label>
           </div>
           <button type="submit" class="primary">Create</button>
           <p id="status" class="muted"></p>
+          <p id="categoryNotice" class="muted"></p>
         </form>
       </section>
 
@@ -60,6 +69,10 @@
     const form = document.getElementById('productForm');
     const statusEl = document.getElementById('status');
     const listEl = document.getElementById('productsList');
+    const categorySelect = document.getElementById('categorySelect');
+    const categoryNotice = document.getElementById('categoryNotice');
+
+    let categories = [];
 
     function renderProducts(items) {
       if (!items.length) {
@@ -74,6 +87,7 @@
                 <div>
                   <p class="label">${p.name}</p>
                   <p class="muted">${p.description || 'No description'}</p>
+                  <p class="badge">${p.category_name ? `Category: ${p.category_name}` : 'Uncategorized'}</p>
                 </div>
               </div>
               <div class="qty-row">
@@ -111,14 +125,55 @@
       }
     }
 
+    function renderCategoryOptions(items) {
+      if (!items.length) {
+        categorySelect.innerHTML = '<option value="">No categories</option>';
+        categorySelect.disabled = true;
+        categoryNotice.innerHTML =
+          'You need a category before adding products. <a href="/admin/categories.html">Create one</a>.';
+        return;
+      }
+      categorySelect.disabled = false;
+      categoryNotice.textContent = '';
+      const options = ['<option value="" disabled selected>Select a category</option>']
+        .concat(items.map((c) => `<option value="${c.id}">${c.name}</option>`))
+        .join('');
+      categorySelect.innerHTML = options;
+      categorySelect.value = '';
+    }
+
+    async function fetchCategories() {
+      try {
+        const resp = await fetch('/api/admin/categories');
+        if (resp.status === 401) {
+          window.location.href = '/login.html';
+          return;
+        }
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.error || 'Failed to load categories');
+        categories = data.items || [];
+        renderCategoryOptions(categories);
+      } catch (err) {
+        categorySelect.innerHTML = '<option value="">Error loading</option>';
+        categoryNotice.textContent = err.message;
+        categorySelect.disabled = true;
+      }
+    }
+
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       statusEl.textContent = 'Creating...';
+      if (!categories.length) {
+        statusEl.textContent = 'Please create a category first.';
+        statusEl.className = 'error';
+        return;
+      }
       try {
         const payload = {
           name: form.name.value.trim(),
           description: form.description.value.trim(),
           quantity: Number(form.quantity.value || 0),
+          category_id: Number(form.category_id.value),
         };
         const resp = await fetch('/api/admin/products', {
           method: 'POST',
@@ -180,7 +235,7 @@
       }
     });
 
-    fetchProducts();
+    fetchCategories().then(fetchProducts);
   </script>
 </body>
 </html>

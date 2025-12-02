@@ -1,4 +1,16 @@
+const bcrypt = require('bcryptjs');
 const { findByPhone, findById, createUser } = require('../repositories/userRepository');
+
+const SALT_ROUNDS = 10;
+
+function mapMysqlError(err) {
+  if (err && err.code === 'ER_DUP_ENTRY') {
+    if (err.sqlMessage && err.sqlMessage.includes('phone_number')) return 'Phone number already registered';
+    if (err.sqlMessage && err.sqlMessage.includes('PRIMARY')) return 'user_id already exists';
+    return 'Duplicate entry';
+  }
+  return null;
+}
 
 function validatePayload(body) {
   const { user_name, phone_number, password, role, user_id, admin_id } = body;
@@ -52,16 +64,26 @@ async function register(req, res) {
       }
     }
 
+    const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
+
     const userId = await createUser({
       role,
       id: user_id ? String(user_id).trim() : undefined,
       name: user_name,
       phone_number,
-      password,
+      password_hash: hashedPassword,
       admin_id: role === 'staff' ? String(admin_id).trim() : undefined,
     });
-    return res.status(201).json({ message: 'Registered successfully', userId });
+    const message =
+      role === 'staff'
+        ? 'Registered successfully. Awaiting admin approval.'
+        : 'Registered successfully';
+    return res.status(201).json({ message, userId });
   } catch (err) {
+    const known = mapMysqlError(err);
+    if (known) {
+      return res.status(409).json({ error: known });
+    }
     console.error('Register failed:', err);
     return res.status(500).json({ error: 'Internal server error' });
   }

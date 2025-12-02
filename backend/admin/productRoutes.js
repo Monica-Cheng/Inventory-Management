@@ -1,6 +1,7 @@
 const express = require('express');
 const { requireAdmin } = require('./authMiddleware');
 const { listProducts, createProduct, updateQuantity } = require('./productRepository');
+const { categoryBelongsToAdmin } = require('./categoryRepository');
 
 const router = express.Router();
 
@@ -15,7 +16,7 @@ router.get('/api/admin/products', requireAdmin, async (req, res) => {
 });
 
 router.post('/api/admin/products', requireAdmin, async (req, res) => {
-  const { name, description, quantity } = req.body;
+  const { name, description, quantity, category_id } = req.body;
   if (!name || !String(name).trim()) {
     return res.status(400).json({ error: 'Product name is required' });
   }
@@ -23,9 +24,24 @@ router.post('/api/admin/products', requireAdmin, async (req, res) => {
   if (!Number.isFinite(qty) || qty < 0) {
     return res.status(400).json({ error: 'Quantity must be a non-negative number' });
   }
+  const categoryId = Number(category_id);
+  if (!Number.isInteger(categoryId) || categoryId <= 0) {
+    return res.status(400).json({ error: 'Valid category_id is required' });
+  }
 
   try {
-    await createProduct(req.admin.id, String(name).trim(), description ? String(description).trim() : null, qty);
+    const belongs = await categoryBelongsToAdmin(req.admin.id, categoryId);
+    if (!belongs) {
+      return res.status(404).json({ error: 'Category not found for this admin' });
+    }
+
+    await createProduct(
+      req.admin.id,
+      categoryId,
+      String(name).trim(),
+      description ? String(description).trim() : null,
+      qty
+    );
     res.status(201).json({ message: 'Product created' });
   } catch (err) {
     console.error('Create product failed:', err);

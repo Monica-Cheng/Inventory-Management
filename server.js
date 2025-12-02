@@ -4,6 +4,8 @@ const registerRoutes = require('./backend/routes/registerRoutes');
 const adminDashboardRoutes = require('./backend/admin/dashboardRoutes');
 const adminCategoryRoutes = require('./backend/admin/categoryRoutes');
 const adminProductRoutes = require('./backend/admin/productRoutes');
+const adminOrderRoutes = require('./backend/admin/orderRoutes');
+const adminStaffRoutes = require('./backend/admin/staffRoutes');
 const { getSession } = require('./backend/auth/sessionStore');
 
 const app = express();
@@ -17,6 +19,8 @@ app.use(registerRoutes);
 app.use(adminDashboardRoutes);
 app.use(adminCategoryRoutes);
 app.use(adminProductRoutes);
+app.use(adminOrderRoutes);
+app.use(adminStaffRoutes);
 
 // protect admin dashboard page
 app.get(
@@ -84,6 +88,52 @@ app.get(
   },
   (_req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'admin', 'products.html'));
+  }
+);
+
+// protect admin orders page
+app.get(
+  '/admin/orders.html',
+  (req, res, next) => {
+    const raw = req.headers.cookie;
+    const cookies = raw
+      ? raw.split(';').reduce((acc, pair) => {
+          const [k, ...rest] = pair.trim().split('=');
+          acc[k] = decodeURIComponent(rest.join('='));
+          return acc;
+        }, {})
+      : {};
+    const session = getSession(cookies.admin_token);
+    if (!session || session.role !== 'admin') {
+      return res.redirect('/login.html');
+    }
+    next();
+  },
+  (_req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'admin', 'orders.html'));
+  }
+);
+
+// protect admin staff page
+app.get(
+  '/admin/staff.html',
+  (req, res, next) => {
+    const raw = req.headers.cookie;
+    const cookies = raw
+      ? raw.split(';').reduce((acc, pair) => {
+          const [k, ...rest] = pair.trim().split('=');
+          acc[k] = decodeURIComponent(rest.join('='));
+          return acc;
+        }, {})
+      : {};
+    const session = getSession(cookies.admin_token);
+    if (!session || session.role !== 'admin') {
+      return res.redirect('/login.html');
+    }
+    next();
+  },
+  (_req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'admin', 'staff.html'));
   }
 );
 

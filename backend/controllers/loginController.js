@@ -1,3 +1,4 @@
+const bcrypt = require('bcryptjs');
 const { findWithPasswordByPhone, findWithPasswordById } = require('../repositories/userRepository');
 const { createSession } = require('../auth/sessionStore');
 
@@ -21,11 +22,16 @@ async function login(req, res) {
       user = await findWithPasswordByPhone(role, trimmedPhone);
     }
 
-    if (!user || user.password !== password) {
+    const passwordOk = user ? await bcrypt.compare(password, user.password_hash) : false;
+    if (!user || !passwordOk) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    const { password: _, ...safeUser } = user;
+    if (role === 'staff' && user.status !== 'active') {
+      return res.status(403).json({ error: 'Account pending approval or rejected' });
+    }
+
+    const { password_hash: _, ...safeUser } = user;
 
     // only admins get a session for dashboard access
     if (role === 'admin') {

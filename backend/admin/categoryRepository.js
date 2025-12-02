@@ -23,8 +23,17 @@ async function existsByName(adminId, name) {
   return Boolean(rows[0]);
 }
 
+async function categoryBelongsToAdmin(adminId, categoryId) {
+  const rows = await query('SELECT id FROM category WHERE id = ? AND admin_id = ? LIMIT 1', [
+    categoryId,
+    adminId,
+  ]);
+  return Boolean(rows[0]);
+}
+
 module.exports = {
   createCategory,
   listCategories,
   existsByName,
+  categoryBelongsToAdmin,
 };
