@@ -33,12 +33,10 @@
         <h3>Create order</h3>
         <form id="orderForm" class="form">
           <div class="field-row">
-            <label class="floating">
-              <span>Operator (staff)</span>
-              <select name="operator_id" id="operatorSelect">
-                <option value="">Loading...</option>
-              </select>
-            </label>
+            <div class="floating" style="padding: 12px 0;">
+              <p class="label" style="margin:0;">Operator</p>
+              <p class="muted" style="margin:4px 0 0;">Current admin (stored as null)</p>
+            </div>
             <label class="floating">
               <span>Order date (optional)</span>
               <input type="datetime-local" name="order_date" id="orderDate" placeholder=" " />
@@ -66,7 +64,6 @@
 
   <script>
     const orderForm = document.getElementById('orderForm');
-    const operatorSelect = document.getElementById('operatorSelect');
     const orderDate = document.getElementById('orderDate');
     const itemsContainer = document.getElementById('itemsContainer');
     const addItemBtn = document.getElementById('addItemBtn');
@@ -80,19 +77,6 @@
 
     function optionLabelForProduct(p) {
       return `${p.name} — stock: ${p.quantity}`;
-    }
-
-    function renderStaffOptions(items) {
-      operatorSelect.disabled = false;
-      formHint.textContent = 'Operator optional; leave empty for unassigned.';
-      const baseOption = '<option value="">Unassigned</option>';
-      if (!items.length) {
-        operatorSelect.innerHTML = baseOption;
-        return;
-      }
-      operatorSelect.innerHTML = [baseOption]
-        .concat(items.map((s) => `<option value="${s.id}">${s.name} (${s.phone_number})</option>`))
-        .join('');
     }
 
     function productOptionsHtml() {
@@ -154,7 +138,6 @@
         products = data.products || [];
         staff = data.staff || [];
 
-        renderStaffOptions(staff);
         itemsContainer.innerHTML = '';
         addItemRow();
         statusEl.textContent = '';
@@ -232,8 +215,6 @@
       statusEl.textContent = 'Submitting...';
       statusEl.className = 'muted';
 
-      const operatorId = operatorSelect.value || null;
-
       const items = readItems();
       if (!items.length) {
         statusEl.textContent = 'Add at least one item.';
@@ -261,7 +242,6 @@
       }
 
       const payload = {
-        operator_id: operatorId || undefined,
         order_date: orderDate.value ? orderDate.value : undefined,
         items: items.map((i) => ({ product_id: i.product_id, quantity: i.quantity })),
       };

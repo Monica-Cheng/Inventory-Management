@@ -28,7 +28,7 @@ router.get('/api/admin/orders', requireAdmin, async (req, res) => {
 });
 
 router.post('/api/admin/orders', requireAdmin, async (req, res) => {
-  const { operator_id, order_date, items } = req.body;
+  const { order_date, items } = req.body;
 
   const parsedItems = Array.isArray(items) ? items : [];
   if (!parsedItems.length) {
@@ -42,14 +42,8 @@ router.post('/api/admin/orders', requireAdmin, async (req, res) => {
   }
 
   try {
-    const operatorId = operator_id ? String(operator_id).trim() : null;
-    if (operatorId) {
-      const staff = await listStaff(req.admin.id);
-      const operator = staff.find((s) => s.id === operatorId);
-      if (!operator) {
-        return res.status(404).json({ error: 'Operator not found for this admin' });
-      }
-    }
+    // operator is determined by current user; admins record null, staff (if allowed later) use their own id
+    const operatorId = req.admin.role === 'admin' ? null : req.admin.id;
 
     const orderId = await createOrderWithItems({
       adminId: req.admin.id,
