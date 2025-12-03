@@ -47,7 +47,7 @@ async function main() {
       name VARCHAR(100) NOT NULL,
       phone_number VARCHAR(30) UNIQUE NOT NULL,
       password_hash VARCHAR(255) NOT NULL,
-      status ENUM('pending','active','rejected') NOT NULL DEFAULT 'pending',
+      status ENUM('pending','active','rejected','terminated') NOT NULL DEFAULT 'pending',
       approved_by VARCHAR(64) NULL,
       approved_at DATETIME NULL,
       CONSTRAINT fk_staff_admin
@@ -62,7 +62,15 @@ async function main() {
   } catch (err) {
     if (err.code !== 'ER_BAD_FIELD_ERROR') throw err;
   }
-  await ensureColumn('staff', "status ENUM('pending','active','rejected') NOT NULL DEFAULT 'pending'");
+  await ensureColumn('staff', "status ENUM('pending','active','rejected','terminated') NOT NULL DEFAULT 'pending'");
+  try {
+    await db.query(
+      "ALTER TABLE staff MODIFY status ENUM('pending','active','rejected','terminated') NOT NULL DEFAULT 'pending'"
+    );
+    console.log('Updated staff.status enum to include terminated');
+  } catch (err) {
+    if (err.code !== 'ER_BAD_FIELD_ERROR' && err.code !== 'ER_CANT_CREATE_TABLE') throw err;
+  }
   await ensureColumn('staff', 'approved_by VARCHAR(64) NULL');
   await ensureColumn('staff', 'approved_at DATETIME NULL');
   try {

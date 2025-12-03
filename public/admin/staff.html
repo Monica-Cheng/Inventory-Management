@@ -35,6 +35,7 @@
           <button class="ghost-button" data-filter="pending">Pending</button>
           <button class="ghost-button" data-filter="active">Active</button>
           <button class="ghost-button" data-filter="rejected">Rejected</button>
+          <button class="ghost-button" data-filter="terminated">Terminated</button>
         </div>
         <div id="staffList" class="list" style="margin-top:12px;"></div>
       </section>
@@ -45,6 +46,8 @@
     const staffList = document.getElementById('staffList');
     const filterButtons = document.querySelectorAll('[data-filter]');
     let currentFilter = 'pending';
+    const defaultFilterBtn = document.querySelector('[data-filter="pending"]');
+    if (defaultFilterBtn) defaultFilterBtn.classList.add('active');
 
     filterButtons.forEach((btn) => {
       btn.addEventListener('click', () => {
@@ -57,24 +60,28 @@
 
     function render(list) {
       if (!list.length) {
-        staffList.innerHTML = '<p class="muted">No records.</p>';
-        return;
-      }
-      staffList.innerHTML = list
-        .map((s) => {
-          const status = s.status || 'pending';
-          const actions =
-            status === 'pending'
-              ? `<div class="button-row">
+      staffList.innerHTML = '<p class="muted">No records.</p>';
+      return;
+    }
+    staffList.innerHTML = list
+      .map((s) => {
+        const status = s.status || 'pending';
+        const actions =
+          status === 'pending'
+            ? `<div class="button-row">
                   <button class="primary" data-action="approve" data-id="${s.id}">Approve</button>
                   <button class="ghost-button danger" data-action="reject" data-id="${s.id}">Reject</button>
                 </div>`
+              : status === 'active'
+              ? `<div class="button-row">
+                  <button class="ghost-button danger" data-action="terminate" data-id="${s.id}">Terminate</button>
+                </div>`
               : '';
-          return `
-            <div class="list-item">
-              <div class="list-header">
-                <div>
-                  <p class="label">${s.name}</p>
+        return `
+          <div class="list-item">
+            <div class="list-header">
+              <div>
+                <p class="label">${s.name}</p>
                   <p class="muted">${s.phone_number}</p>
                   <p class="badge">Status: ${status}</p>
                 </div>
@@ -107,7 +114,12 @@
       if (!btn) return;
       const id = btn.dataset.id;
       const action = btn.dataset.action;
-      btn.textContent = action === 'approve' ? 'Approving...' : 'Rejecting...';
+      if (action === 'terminate') {
+        const confirmed = confirm('Are you sure you want to terminate this staff member?');
+        if (!confirmed) return;
+      }
+      const originalText = btn.textContent;
+      btn.textContent = action === 'approve' ? 'Approving...' : action === 'reject' ? 'Rejecting...' : 'Terminating...';
       try {
         const resp = await fetch(`/api/admin/staff/${id}/${action}`, { method: 'PATCH' });
         const data = await resp.json();
@@ -116,7 +128,7 @@
       } catch (err) {
         alert(err.message);
       } finally {
-        btn.textContent = action === 'approve' ? 'Approve' : 'Reject';
+        btn.textContent = originalText;
       }
     });
 

@@ -14,14 +14,15 @@ async function listStaffByStatus(adminId, status = 'pending') {
   return rows;
 }
 
-async function updateStaffStatus({ adminId, staffId, status, approvedBy }) {
+async function updateStaffStatus({ adminId, staffId, status, approvedBy, allowedFromStatuses = ['pending'] }) {
+  const placeholders = allowedFromStatuses.map(() => '?').join(', ');
   const result = await query(
     `
     UPDATE staff
     SET status = ?, approved_by = ?, approved_at = NOW()
-    WHERE id = ? AND admin_id = ? AND status = 'pending'
+    WHERE id = ? AND admin_id = ? AND status IN (${placeholders})
     `,
-    [status, approvedBy || null, staffId, adminId]
+    [status, approvedBy || null, staffId, adminId, ...allowedFromStatuses]
   );
   return result.affectedRows;
 }

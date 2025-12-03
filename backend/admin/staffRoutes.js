@@ -6,7 +6,7 @@ const router = express.Router();
 
 router.get('/api/admin/staff', requireAdmin, async (req, res) => {
   const status = req.query.status || 'pending';
-  const allowed = ['pending', 'active', 'rejected', 'all'];
+  const allowed = ['pending', 'active', 'rejected', 'terminated', 'all'];
   if (!allowed.includes(status)) {
     return res.status(400).json({ error: 'Invalid status filter' });
   }
@@ -54,6 +54,26 @@ router.patch('/api/admin/staff/:id/reject', requireAdmin, async (req, res) => {
   } catch (err) {
     console.error('Reject staff failed:', err);
     res.status(500).json({ error: 'Failed to reject staff' });
+  }
+});
+
+router.patch('/api/admin/staff/:id/terminate', requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  try {
+    const affected = await updateStaffStatus({
+      adminId: req.admin.id,
+      staffId: id,
+      status: 'terminated',
+      approvedBy: req.admin.id,
+      allowedFromStatuses: ['active', 'pending'],
+    });
+    if (!affected) {
+      return res.status(404).json({ error: 'Staff not found or cannot be terminated' });
+    }
+    res.json({ message: 'Staff terminated' });
+  } catch (err) {
+    console.error('Terminate staff failed:', err);
+    res.status(500).json({ error: 'Failed to terminate staff' });
   }
 });
 
