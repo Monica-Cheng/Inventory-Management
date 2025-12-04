@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Register | Inventory</title>
+  <link rel="stylesheet" href="./css/register.css">
+</head>
+<body>
+  <div class="page">
+    <div class="panel hero">
+      <p class="eyebrow">Onboard operators</p>
+      <h1>Create an account to manage inventory</h1>
+      <p class="subtext">Invite admins and staff, track orders, and keep your catalog in sync.</p>
+      <div class="chips">
+        <span>Secure</span>
+        <span>Team-ready</span>
+        <span>Realtime</span>
+      </div>
+      <a class="ghost-link" href="/login.html">Already have an account? Login</a>
+    </div>
+
+    <div class="panel form-panel">
+      <div class="header">
+        <p class="badge">New</p>
+        <h2>Register</h2>
+        <p class="hint">Fill in the details to add a new user.</p>
+      </div>
+
+      <form id="registerForm" class="form">
+        <label>
+          <span>Account type</span>
+          <select name="role" id="roleSelect" required>
+            <option value="admin">Admin</option>
+            <option value="staff">Staff</option>
+          </select>
+        </label>
+
+        <label id="adminField" style="display:none">
+          <span>Admin ID (required for staff)</span>
+          <input type="text" name="admin_id" maxlength="64" placeholder="The admin this staff belongs to">
+        </label>
+
+        <label>
+          <span>User ID (optional, supports letters/numbers)</span>
+          <input type="text" name="user_id" maxlength="64" placeholder="Leave empty to auto-generate">
+        </label>
+
+        <label>
+          <span>Full name</span>
+          <input type="text" name="user_name" placeholder="ex: Alex Chen" required>
+        </label>
+
+        <label>
+          <span>Phone number</span>
+          <input type="tel" name="phone_number" placeholder="ex: +86 139 0000 0000" required>
+        </label>
+
+        <label>
+          <span>Password</span>
+          <input type="password" name="password" placeholder="Minimum 6 characters" minlength="6" required>
+        </label>
+
+        <button type="submit" class="primary">Create account</button>
+        <p id="status" class="status" role="status" aria-live="polite"></p>
+        <p class="muted-link">Have an account? <a href="/login.html">Login here</a></p>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    const form = document.getElementById('registerForm');
+    const statusEl = document.getElementById('status');
+    const roleSelect = document.getElementById('roleSelect');
+    const adminField = document.getElementById('adminField');
+
+    const toggleAdminField = () => {
+      const isStaff = roleSelect.value === 'staff';
+      adminField.style.display = isStaff ? '' : 'none';
+    };
+    roleSelect.addEventListener('change', toggleAdminField);
+    toggleAdminField();
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      statusEl.textContent = 'Submitting...';
+      statusEl.className = 'status pending';
+
+      const payload = {
+        user_id: form.user_id.value ? form.user_id.value.trim() : undefined,
+        user_name: form.user_name.value.trim(),
+        phone_number: form.phone_number.value.trim(),
+        password: form.password.value,
+        role: roleSelect.value,
+        admin_id: form.admin_id.value ? form.admin_id.value.trim() : undefined,
+      };
+
+      if (payload.role === 'staff' && !payload.admin_id) {
+        statusEl.textContent = 'Admin ID is required for staff';
+        statusEl.className = 'status error';
+        return;
+      }
+
+      try {
+        const resp = await fetch('/api/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+
+        const result = await resp.json();
+        if (!resp.ok) throw new Error(result.error || 'Registration failed');
+
+        statusEl.textContent = `Registered successfully. User ID: ${result.userId}`;
+        statusEl.className = 'status success';
+        form.reset();
+        toggleAdminField();
+      } catch (err) {
+        statusEl.textContent = err.message;
+        statusEl.className = 'status error';
+      }
+    });
+  </script>
+</body>
+</html>

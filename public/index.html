@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inventory Dashboard</title>
+    <link rel="stylesheet" href="./css/index.css">
+</head>
+<body>
+  <div class="orb orb-a"></div>
+  <div class="orb orb-b"></div>
+  <div class="page">
+    <nav class="nav">
+      <div class="brand">
+        <span class="dot"></span>
+        <span>Inventory OS</span>
+      </div>
+      <div class="nav-links">
+        <a href="#features">Features</a>
+        <a href="#workflow">Workflow</a>
+        <a href="#cta">Pricing</a>
+      </div>
+      <div class="nav-actions">
+        <a class="link" href="/login.html">Log in</a>
+        <a class="pill" href="/register.html">Create account</a>
+      </div>
+    </nav>
+
+    <header class="hero">
+      <div class="hero-copy">
+        <p class="eyebrow">Inventory control for modern teams</p>
+        <h1>Approve staff faster, ship orders sooner, keep shelves accurate.</h1>
+        <p class="lede">
+          One workspace for admins to onboard staff, secure approvals, and automate product movements—without losing track of stock health.
+        </p>
+        <div class="cta-row">
+          <a class="btn primary" href="/login.html">Open dashboard</a>
+          <a class="btn secondary" href="/register.html">Invite your team</a>
+          <button class="btn ghost" type="button">Book a walkthrough</button>
+        </div>
+        <div class="hero-meta">
+          <span class="chip">Staff approvals</span>
+          <span class="chip">Real-time stock</span>
+          <span class="chip">Order accuracy</span>
+        </div>
+        <div class="stats">
+          <div class="stat">
+            <div class="stat-value">99.2%</div>
+            <div class="stat-label">Inventory accuracy after 30 days</div>
+          </div>
+          <div class="stat">
+            <div class="stat-value">-38%</div>
+            <div class="stat-label">Time to approve and activate staff</div>
+          </div>
+          <div class="stat">
+            <div class="stat-value">24/7</div>
+            <div class="stat-label">Support with real humans</div>
+          </div>
+        </div>
+      </div>
+      <div class="hero-panel">
+        <div class="panel-header">
+          <div>
+            <p class="eyebrow muted">Today</p>
+            <p class="panel-title">Team overview</p>
+          </div>
+          <span class="badge">Live</span>
+        </div>
+        <div class="panel-body">
+          <div class="mini-list">
+            <div class="mini-row">
+              <div>
+                <p class="label">Approvals</p>
+                <p class="muted">2 pending, 4 active</p>
+              </div>
+              <a class="tiny-link" href="/admin/staff.html">Manage</a>
+            </div>
+            <div class="mini-row">
+              <div>
+                <p class="label">Orders in motion</p>
+                <p class="muted">7 packing • 3 awaiting pickup</p>
+              </div>
+              <span class="pill quiet">On track</span>
+            </div>
+            <div class="mini-row">
+              <div>
+                <p class="label">Low stock alerts</p>
+                <p class="muted">Pallet wrap, Barcodes</p>
+              </div>
+              <span class="pill warn">Action</span>
+            </div>
+          </div>
+          <div class="timeline">
+            <div class="dotline"></div>
+            <div class="timeline-item">
+              <div class="time">09:15</div>
+              <div>
+                <p class="label">Maria activated</p>
+                <p class="muted">Approved by Admin</p>
+              </div>
+            </div>
+            <div class="timeline-item">
+              <div class="time">10:20</div>
+              <div>
+                <p class="label">Order #8421 packed</p>
+                <p class="muted">By Arjun</p>
+              </div>
+            </div>
+            <div class="timeline-item">
+              <div class="time">11:05</div>
+              <div>
+                <p class="label">Stock recalc</p>
+                <p class="muted">Cycle count synchronized</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="panel-footer">
+          <div>
+            <p class="label">Ready to work?</p>
+            <p class="muted">Log in to approve staff, create categories, and ship orders.</p>
+          </div>
+          <a class="btn tiny" href="/login.html">Start</a>
+        </div>
+      </div>
+    </header>
+
+    <section id="features" class="section">
+      <div class="section-head">
+        <p class="eyebrow">Why teams choose Inventory OS</p>
+        <h2>Ops-grade design without the corporate stiffness.</h2>
+        <p class="muted">Everything is built for speed: staff approvals, product updates, and order orchestration in one clear view.</p>
+      </div>
+      <div class="feature-grid">
+        <article class="card">
+          <div class="pill quiet">Staff</div>
+          <h3>Approve and protect access</h3>
+          <p>Activate, reject, or terminate staff while keeping an auditable trail of who approved what.</p>
+          <a class="tiny-link" href="/admin/staff.html">View staff console</a>
+        </article>
+        <article class="card">
+          <div class="pill quiet">Inventory</div>
+          <h3>Products with context</h3>
+          <p>Organize categories, quantities, and descriptions with zero guesswork and clear ownership.</p>
+          <a class="tiny-link" href="/admin/products.html">Manage products</a>
+        </article>
+        <article class="card">
+          <div class="pill quiet">Orders</div>
+          <h3>Ship without delays</h3>
+          <p>Track every order lifecycle and keep operators accountable from pick to pack to dispatch.</p>
+          <a class="tiny-link" href="/admin/orders.html">Check orders</a>
+        </article>
+        <article class="card highlight">
+          <div class="pill accent">Live sync</div>
+          <h3>Real-time signals</h3>
+          <p>Metrics pulse right on the hero: approvals, orders, alerts—no refresh required.</p>
+          <div class="inline-stats">
+            <span>+12 new items</span>
+            <span>4 low stock</span>
+            <span>99.2% accuracy</span>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section id="workflow" class="section workflow">
+      <div class="section-head">
+        <p class="eyebrow">Built for the admin journey</p>
+        <h2>From login to shipped order in three steps.</h2>
+      </div>
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">01</div>
+          <h3>Invite and review staff</h3>
+          <p>Share invites, approve or reject applications, and terminate access when needed.</p>
+        </div>
+        <div class="step">
+          <div class="step-num">02</div>
+          <h3>Publish categories and products</h3>
+          <p>Organize your catalog with clear ownership so operators never wonder what to pack.</p>
+        </div>
+        <div class="step">
+          <div class="step-num">03</div>
+          <h3>Operate orders with confidence</h3>
+          <p>Track every order’s status and keep a single source of truth for your floor.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="cta" class="cta-banner">
+      <div>
+        <p class="eyebrow">Ready to move?</p>
+        <h2>Open the admin dashboard and see your live data.</h2>
+        <p class="muted">No setup fees. Approvals, products, and orders in one place.</p>
+      </div>
+      <div class="cta-actions">
+        <a class="btn primary" href="/login.html">Log in</a>
+        <a class="btn ghost" href="/register.html">Create an admin account</a>
+      </div>
+    </section>
+  </div>
+</body>
+</html>
