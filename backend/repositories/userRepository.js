@@ -10,7 +10,7 @@ function tableFor(role) {
 async function findByPhone(role, phoneNumber) {
   const table = tableFor(role);
   const rows = await query(
-    `SELECT id, name AS user_name, phone_number, '${role}' AS role FROM ${table} WHERE phone_number = ? LIMIT 1`,
+    `SELECT id, name AS user_name, email, phone_number, ${role === 'staff' ? 'admin_id,' : ''} '${role}' AS role FROM ${table} WHERE phone_number = ? LIMIT 1`,
     [phoneNumber]
   );
   return rows[0];
@@ -19,8 +19,17 @@ async function findByPhone(role, phoneNumber) {
 async function findById(role, id) {
   const table = tableFor(role);
   const rows = await query(
-    `SELECT id, name AS user_name, phone_number, '${role}' AS role FROM ${table} WHERE id = ? LIMIT 1`,
+    `SELECT id, name AS user_name, email, phone_number, ${role === 'staff' ? 'admin_id,' : ''} '${role}' AS role FROM ${table} WHERE id = ? LIMIT 1`,
     [id]
+  );
+  return rows[0];
+}
+
+async function findByEmail(role, email) {
+  const table = tableFor(role);
+  const rows = await query(
+    `SELECT id, name AS user_name, email, phone_number, ${role === 'staff' ? 'admin_id,' : ''} '${role}' AS role FROM ${table} WHERE email = ? LIMIT 1`,
+    [email]
   );
   return rows[0];
 }
@@ -28,7 +37,7 @@ async function findById(role, id) {
 async function findWithPasswordById(role, id) {
   const table = tableFor(role);
   const rows = await query(
-    `SELECT id, name AS user_name, phone_number, password_hash, '${role}' AS role${
+    `SELECT id, name AS user_name, email, phone_number, ${role === 'staff' ? 'admin_id,' : ''} password_hash, '${role}' AS role${
       role === 'staff' ? ', status' : ''
     } FROM ${table} WHERE id = ? LIMIT 1`,
     [id]
@@ -39,7 +48,7 @@ async function findWithPasswordById(role, id) {
 async function findWithPasswordByPhone(role, phoneNumber) {
   const table = tableFor(role);
   const rows = await query(
-    `SELECT id, name AS user_name, phone_number, password_hash, '${role}' AS role${
+    `SELECT id, name AS user_name, email, phone_number, ${role === 'staff' ? 'admin_id,' : ''} password_hash, '${role}' AS role${
       role === 'staff' ? ', status' : ''
     } FROM ${table} WHERE phone_number = ? LIMIT 1`,
     [phoneNumber]
@@ -47,24 +56,37 @@ async function findWithPasswordByPhone(role, phoneNumber) {
   return rows[0];
 }
 
-async function createUser({ role, id, name, phone_number, password_hash, admin_id }) {
+async function findWithPasswordByEmail(role, email) {
+  const table = tableFor(role);
+  const rows = await query(
+    `SELECT id, name AS user_name, email, phone_number, ${role === 'staff' ? 'admin_id,' : ''} password_hash, '${role}' AS role${
+      role === 'staff' ? ', status' : ''
+    } FROM ${table} WHERE email = ? LIMIT 1`,
+    [email]
+  );
+  return rows[0];
+}
+
+async function createUser({ role, id, name, email, phone_number, password_hash, admin_id }) {
   const table = tableFor(role);
   const finalId = id || crypto.randomBytes(16).toString('hex');
 
   if (role === 'admin') {
-    await query(`INSERT INTO admin (id, name, phone_number, password_hash) VALUES (?, ?, ?, ?)`, [
+    await query(`INSERT INTO admin (id, name, email, phone_number, password_hash) VALUES (?, ?, ?, ?, ?)`, [
       finalId,
       name,
+      email,
       phone_number,
       password_hash,
     ]);
   } else {
     await query(
-      `INSERT INTO staff (id, admin_id, name, phone_number, password_hash, status) VALUES (?, ?, ?, ?, ?, 'pending')`,
+      `INSERT INTO staff (id, admin_id, name, email, phone_number, password_hash, status) VALUES (?, ?, ?, ?, ?, ?, 'pending')`,
       [
         finalId,
         admin_id,
         name,
+        email,
         phone_number,
         password_hash,
       ]
@@ -77,7 +99,9 @@ async function createUser({ role, id, name, phone_number, password_hash, admin_i
 module.exports = {
   findByPhone,
   findById,
+  findByEmail,
   findWithPasswordById,
   findWithPasswordByPhone,
+  findWithPasswordByEmail,
   createUser,
 };

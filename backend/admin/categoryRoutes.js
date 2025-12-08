@@ -1,10 +1,9 @@
 const express = require('express');
-const { requireAdmin } = require('./authMiddleware');
+const { requireAdmin, requireAdminOrStaff } = require('../auth/authMiddleware');
 const {
   createCategory,
   listCategories,
   existsByName,
-  categoryBelongsToAdmin,
   isCategoryUsed,
   existsByNameForOther,
   updateCategory,
@@ -13,9 +12,10 @@ const {
 
 const router = express.Router();
 
-router.get('/api/admin/categories', requireAdmin, async (req, res) => {
+// List categories (admin or staff can view)
+router.get('/api/admin/categories', requireAdminOrStaff, async (_req, res) => {
   try {
-    const rows = await listCategories(req.admin.id);
+    const rows = await listCategories();
     res.json({ items: rows });
   } catch (err) {
     console.error('List categories failed:', err);
@@ -31,9 +31,9 @@ router.post('/api/admin/categories', requireAdmin, async (req, res) => {
   const cleanName = String(name).trim();
 
   try {
-    const exists = await existsByName(req.admin.id, cleanName);
+    const exists = await existsByName(cleanName);
     if (exists) {
-      return res.status(409).json({ error: 'Category name already exists for this admin' });
+      return res.status(409).json({ error: 'Category name already exists' });
     }
 
     await createCategory(req.admin.id, cleanName, description ? String(description).trim() : null);
@@ -41,7 +41,7 @@ router.post('/api/admin/categories', requireAdmin, async (req, res) => {
   } catch (err) {
     console.error('Create category failed:', err);
     if (err.code === 'ER_DUP_ENTRY') {
-      return res.status(409).json({ error: 'Category name already exists for this admin' });
+      return res.status(409).json({ error: 'Category name already exists' });
     }
     res.status(500).json({ error: 'Failed to create category' });
   }
@@ -59,22 +59,12 @@ router.patch('/api/admin/categories/:id', requireAdmin, async (req, res) => {
   const cleanName = String(name).trim();
 
   try {
-    const belongs = await categoryBelongsToAdmin(req.admin.id, categoryId);
-    if (!belongs) {
-      return res.status(404).json({ error: 'Category not found' });
-    }
-
-    const nameTaken = await existsByNameForOther(req.admin.id, cleanName, categoryId);
+    const nameTaken = await existsByNameForOther(cleanName, categoryId);
     if (nameTaken) {
-      return res.status(409).json({ error: 'Category name already exists for this admin' });
+      return res.status(409).json({ error: 'Category name already exists' });
     }
 
-    const affected = await updateCategory(
-      req.admin.id,
-      categoryId,
-      cleanName,
-      description ? String(description).trim() : null
-    );
+    const affected = await updateCategory(categoryId, cleanName, description ? String(description).trim() : null);
     if (!affected) {
       return res.status(404).json({ error: 'Category not found' });
     }
@@ -93,17 +83,12 @@ router.delete('/api/admin/categories/:id', requireAdmin, async (req, res) => {
   }
 
   try {
-    const belongs = await categoryBelongsToAdmin(req.admin.id, categoryId);
-    if (!belongs) {
-      return res.status(404).json({ error: 'Category not found' });
-    }
-
-    const used = await isCategoryUsed(req.admin.id, categoryId);
+    const used = await isCategoryUsed(categoryId);
     if (used) {
       return res.status(400).json({ error: 'Category is used by products and cannot be deleted' });
     }
 
-    const affected = await deleteCategory(req.admin.id, categoryId);
+    const affected = await deleteCategory(categoryId);
     if (!affected) {
       return res.status(404).json({ error: 'Category not found' });
     }

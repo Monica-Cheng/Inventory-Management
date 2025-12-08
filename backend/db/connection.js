@@ -1,19 +1,29 @@
-const mysql = require('mysql2/promise');
-const { DB_CONFIG } = require('../../database/config');
+// backend/db/connection.js
+// Connection pool and helpers for MySQL
 
-const pool = mysql.createPool({
-  ...DB_CONFIG,
-  waitForConnections: true,
-  connectionLimit: 10,
-  queueLimit: 0,
-});
+const mysql = require('mysql2/promise');
+const { ROOT_CONFIG, DB_NAME } = require('../../database/config');
+
+let pool;
+
+function getPool() {
+  if (!pool) {
+    pool = mysql.createPool({
+      ...ROOT_CONFIG,
+      database: DB_NAME,
+      connectionLimit: 10,
+    });
+  }
+  return pool;
+}
+
+async function getConnection() {
+  return getPool().getConnection();
+}
 
 async function query(sql, params) {
-  const [rows] = await pool.execute(sql, params);
+  const [rows] = await getPool().query(sql, params);
   return rows;
 }
 
-module.exports = {
-  pool,
-  query,
-};
+module.exports = { getConnection, query };

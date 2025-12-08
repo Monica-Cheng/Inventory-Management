@@ -8,19 +8,33 @@ const adminOrderRoutes = require('./backend/admin/orderRoutes');
 const adminStaffRoutes = require('./backend/admin/staffRoutes');
 const { getSession } = require('./backend/auth/sessionStore');
 
+// ⭐ NEW CLEAN BACKEND ROUTES
+const deploymentRoutes = require('./backend/admin/deploymentRoutes');
+const newOrderRoutes = require('./backend/admin/orderRoutes');
+const newProductRoutes = require('./backend/admin/productRoutes');
+
+const deploymentListRoutes = require('./backend/admin/deploymentListRoutes');
+
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3001;
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
+app.use('/api/deployments', deploymentListRoutes);
 
+// OLD ROUTES (HTML-based admin)
 app.use(registerRoutes);
 app.use(adminDashboardRoutes);
 app.use(adminCategoryRoutes);
 app.use(adminProductRoutes);
 app.use(adminOrderRoutes);
 app.use(adminStaffRoutes);
+
+// ⭐ NEW CLEAN API ROUTES (React will use these)
+app.use('/api/deployments', deploymentRoutes);
+app.use('/api/orders', newOrderRoutes);
+app.use('/api/products', newProductRoutes);
 
 // protect admin dashboard page
 app.get(
@@ -137,6 +151,15 @@ app.get(
   }
 );
 
-app.listen(PORT, () => {
+const server = app.listen(PORT, (err) => {
+  if (err) {
+    console.error('Failed to start server:', err.message);
+    process.exit(1);
+  }
   console.log(`Server running at http://localhost:${PORT}`);
+});
+
+server.on('error', (err) => {
+  console.error('Server error:', err.message);
+  process.exit(1);
 });

@@ -1,5 +1,5 @@
 const bcrypt = require('bcryptjs');
-const { findByPhone, findById, createUser } = require('../repositories/userRepository');
+const { findByPhone, findById, findByEmail, createUser } = require('../repositories/userRepository');
 
 const SALT_ROUNDS = 10;
 
@@ -13,15 +13,18 @@ function mapMysqlError(err) {
 }
 
 function validatePayload(body) {
-  const { user_name, phone_number, password, role, user_id, admin_id } = body;
-  if (!user_name || !phone_number || !password || !role) {
-    return 'user_name, phone_number, password, and role are required';
+  const { user_name, email, phone_number, password, role, user_id, admin_id } = body;
+  if (!user_name || !email || !phone_number || !password || !role) {
+    return 'user_name, email, phone_number, password, and role are required';
   }
   if (!['admin', 'staff'].includes(role)) {
     return 'role must be either "admin" or "staff"';
   }
   if (String(password).length < 6) {
     return 'password must be at least 6 characters';
+  }
+  if (!String(email).includes('@')) {
+    return 'email must be valid';
   }
   if (user_id !== undefined && user_id !== null && user_id !== '') {
     const trimmed = String(user_id).trim();
@@ -42,12 +45,17 @@ async function register(req, res) {
   const error = validatePayload(req.body);
   if (error) return res.status(400).json({ error });
 
-  const { user_name, phone_number, password, role, user_id, admin_id } = req.body;
+  const { user_name, email, phone_number, password, role, user_id, admin_id } = req.body;
 
   try {
-    const existing = await findByPhone(role, phone_number);
-    if (existing) {
+    const existingPhone = await findByPhone(role, phone_number);
+    if (existingPhone) {
       return res.status(409).json({ error: 'Phone number already registered' });
+    }
+
+    const existingEmail = await findByEmail(role, email);
+    if (existingEmail) {
+      return res.status(409).json({ error: 'Email already registered' });
     }
 
     if (user_id) {
@@ -70,6 +78,7 @@ async function register(req, res) {
       role,
       id: user_id ? String(user_id).trim() : undefined,
       name: user_name,
+      email,
       phone_number,
       password_hash: hashedPassword,
       admin_id: role === 'staff' ? String(admin_id).trim() : undefined,

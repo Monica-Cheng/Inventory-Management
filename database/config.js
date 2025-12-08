@@ -1,19 +1,13 @@
-require('dotenv').config();
-
-const DB_PORT = process.env.DB_PORT ? parseInt(process.env.DB_PORT, 10) : undefined;
+// database/config.js
+// Central place for DB settings used by createDB.js and backend connections
 
 const ROOT_CONFIG = {
-  host: process.env.DB_HOST || 'localhost',
-  user: process.env.DB_USER || 'root',
-  password: process.env.DB_PASSWORD || '',
-  ...(DB_PORT ? { port: DB_PORT } : {}),
+  host: 'localhost',
+  user: 'root',       // XAMPP default
+  password: '',       // XAMPP default is empty; change if you set a password
+  multipleStatements: true,
 };
 
-const DB_NAME = process.env.DB_NAME || 'inventory_siao';
-const DB_CONFIG = { ...ROOT_CONFIG, database: DB_NAME };
+const DB_NAME = 'inventory_siao'; // you can rename if you want
 
-module.exports = {
-  ROOT_CONFIG,
-  DB_NAME,
-  DB_CONFIG,
-};
+module.exports = { ROOT_CONFIG, DB_NAME };

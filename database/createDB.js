@@ -1,144 +1,116 @@
+// database/createDB.js
+// Creates the inventory_siao database and all required tables
+
 const mysql = require('mysql2/promise');
 const { ROOT_CONFIG, DB_NAME } = require('./config');
 
 async function main() {
+  // 1. connect as root (no database yet)
   const root = await mysql.createConnection(ROOT_CONFIG);
-  console.log('Connected to MySQL server');
+  console.log('Connected to MySQL as root');
 
-  await root.query(`CREATE DATABASE IF NOT EXISTS ${DB_NAME}`);
-  console.log(`Database "${DB_NAME}" ready`);
+  // 2. create database if not exists
+  await root.query(`CREATE DATABASE IF NOT EXISTS \`${DB_NAME}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci`);
+  console.log(`Database "${DB_NAME}" ensured`);
   await root.end();
 
-  const db = await mysql.createConnection({ ...ROOT_CONFIG, database: DB_NAME });
-  console.log(`Connected to ${DB_NAME}`);
+  // 3. connect to the new database
+  const db = await mysql.createConnection({
+    ...ROOT_CONFIG,
+    database: DB_NAME,
+  });
+  console.log(`Connected to database "${DB_NAME}"`);
 
-  async function ensureColumn(table, definition) {
-    try {
-      await db.query(`ALTER TABLE ${table} ADD COLUMN ${definition}`);
-      console.log(`Added column to ${table}: ${definition}`);
-    } catch (err) {
-      // MySQL duplicate column error
-      if (err.code !== 'ER_DUP_FIELDNAME') throw err;
-    }
-  }
+  // 4. create tables
 
-  // admin accounts
+  // admins
   await db.query(`
     CREATE TABLE IF NOT EXISTS admin (
-      id VARCHAR(64) PRIMARY KEY,
+      id INT AUTO_INCREMENT PRIMARY KEY,
       name VARCHAR(100) NOT NULL,
-      phone_number VARCHAR(30) UNIQUE NOT NULL,
-      password_hash VARCHAR(255) NOT NULL
+      email VARCHAR(255) NOT NULL UNIQUE,
+      phone_number VARCHAR(30),
+      password_hash VARCHAR(255) NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
   `);
-  await ensureColumn('admin', 'password_hash VARCHAR(255) NOT NULL');
-  try {
-    await db.query('UPDATE admin SET password_hash = password WHERE password_hash IS NULL AND password IS NOT NULL');
-  } catch (err) {
-    if (err.code !== 'ER_BAD_FIELD_ERROR') throw err;
-  }
-  console.log('Table "admin" ready');
 
-  // staff accounts, tied to an admin
+  // staff accounts (for POS operators)
   await db.query(`
     CREATE TABLE IF NOT EXISTS staff (
-      id VARCHAR(64) PRIMARY KEY,
-      admin_id VARCHAR(64) NOT NULL,
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      admin_id INT NOT NULL,
       name VARCHAR(100) NOT NULL,
-      phone_number VARCHAR(30) UNIQUE NOT NULL,
+      email VARCHAR(255) NOT NULL UNIQUE,
+      phone_number VARCHAR(30),
       password_hash VARCHAR(255) NOT NULL,
-      status ENUM('pending','active','rejected','terminated') NOT NULL DEFAULT 'pending',
-      approved_by VARCHAR(64) NULL,
-      approved_at DATETIME NULL,
-      CONSTRAINT fk_staff_admin
-        FOREIGN KEY (admin_id) REFERENCES admin(id)
-        ON DELETE CASCADE
-        ON UPDATE CASCADE
+      status ENUM('PENDING','ACTIVE','REJECTED','TERMINATED') NOT NULL DEFAULT 'PENDING',
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT fk_staff_admin FOREIGN KEY (admin_id)
+        REFERENCES admin(id) ON DELETE CASCADE
     )
   `);
-  await ensureColumn('staff', 'password_hash VARCHAR(255) NOT NULL');
-  try {
-    await db.query('UPDATE staff SET password_hash = password WHERE password_hash IS NULL AND password IS NOT NULL');
-  } catch (err) {
-    if (err.code !== 'ER_BAD_FIELD_ERROR') throw err;
-  }
-  await ensureColumn('staff', "status ENUM('pending','active','rejected','terminated') NOT NULL DEFAULT 'pending'");
-  try {
-    await db.query(
-      "ALTER TABLE staff MODIFY status ENUM('pending','active','rejected','terminated') NOT NULL DEFAULT 'pending'"
-    );
-    console.log('Updated staff.status enum to include terminated');
-  } catch (err) {
-    if (err.code !== 'ER_BAD_FIELD_ERROR' && err.code !== 'ER_CANT_CREATE_TABLE') throw err;
-  }
-  await ensureColumn('staff', 'approved_by VARCHAR(64) NULL');
-  await ensureColumn('staff', 'approved_at DATETIME NULL');
-  try {
-    await db.query(`
-      ALTER TABLE staff
-      ADD CONSTRAINT fk_staff_approved_by
-        FOREIGN KEY (approved_by) REFERENCES admin(id)
-        ON DELETE SET NULL
-        ON UPDATE CASCADE
-    `);
-  } catch (err) {
-    if (err.code !== 'ER_DUP_KEYNAME' && err.code !== 'ER_CANT_CREATE_TABLE') throw err;
-  }
-  console.log('Table "staff" ready');
 
+  // product categories (Drinks, Food, Dessert, etc.)
   await db.query(`
     CREATE TABLE IF NOT EXISTS category (
       id INT AUTO_INCREMENT PRIMARY KEY,
-      admin_id VARCHAR(64) NOT NULL,
+      admin_id INT NOT NULL,
       name VARCHAR(100) NOT NULL,
-      description TEXT,
-      CONSTRAINT uq_category_admin UNIQUE (admin_id, name),
-      FOREIGN KEY (admin_id) REFERENCES admin(id)
-        ON DELETE CASCADE
-        ON UPDATE CASCADE
+      description VARCHAR(255) NULL,
+      CONSTRAINT fk_category_admin FOREIGN KEY (admin_id)
+        REFERENCES admin(id) ON DELETE CASCADE
     )
   `);
-  console.log('Table "category" ready');
 
+  // products (total_stock = full inventory in storeroom)
   await db.query(`
     CREATE TABLE IF NOT EXISTS product (
       id INT AUTO_INCREMENT PRIMARY KEY,
-      admin_id VARCHAR(64) NOT NULL,
-      category_id INT NOT NULL,
+      admin_id INT NOT NULL,
+      category_id INT NULL,
       name VARCHAR(100) NOT NULL,
-      description TEXT,
-      quantity INT DEFAULT 0,
-      FOREIGN KEY (category_id) REFERENCES category(id),
-      FOREIGN KEY (admin_id) REFERENCES admin(id)
-        ON DELETE CASCADE
-        ON UPDATE CASCADE
+      description VARCHAR(255),
+      total_stock INT NULL,
+      is_unlimited TINYINT(1) NOT NULL DEFAULT 0,
+      price DECIMAL(10,2) NOT NULL DEFAULT 0,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT fk_product_admin FOREIGN KEY (admin_id)
+        REFERENCES admin(id) ON DELETE CASCADE,
+      CONSTRAINT fk_product_category FOREIGN KEY (category_id)
+        REFERENCES category(id) ON DELETE SET NULL
     )
   `);
-  await ensureColumn('product', 'category_id INT NOT NULL');
-  console.log('Table "product" ready');
 
+  // deployment: how many of each product are deployed for selling
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS deployment (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      product_id INT NOT NULL UNIQUE,
+      deployed_qty INT NOT NULL DEFAULT 0,
+      sold_qty INT NOT NULL DEFAULT 0,
+      CONSTRAINT fk_deployment_product FOREIGN KEY (product_id)
+        REFERENCES product(id) ON DELETE CASCADE
+    )
+  `);
+
+  // orders header
   await db.query(`
     CREATE TABLE IF NOT EXISTS \`order\` (
       id INT AUTO_INCREMENT PRIMARY KEY,
-      admin_id VARCHAR(64) NOT NULL,
-      operator_id VARCHAR(64) NULL,
-      order_date DATETIME DEFAULT CURRENT_TIMESTAMP,
-      status ENUM('pending','completed','canceled') DEFAULT 'pending',
-      FOREIGN KEY (admin_id) REFERENCES admin(id)
-        ON DELETE CASCADE
-        ON UPDATE CASCADE,
-      FOREIGN KEY (operator_id) REFERENCES staff(id)
-        ON DELETE RESTRICT
-        ON UPDATE CASCADE
+      admin_id INT NOT NULL,
+      operator_id INT NULL,
+      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      payment_method VARCHAR(50),
+      status ENUM('PENDING','PAID','CANCELLED') NOT NULL DEFAULT 'PAID',
+      CONSTRAINT fk_order_admin FOREIGN KEY (admin_id)
+        REFERENCES admin(id) ON DELETE CASCADE,
+      CONSTRAINT fk_order_staff FOREIGN KEY (operator_id)
+        REFERENCES staff(id) ON DELETE SET NULL
     )
   `);
-  try {
-    await db.query('ALTER TABLE `order` MODIFY operator_id VARCHAR(64) NULL');
-  } catch (err) {
-    if (err.code !== 'ER_BAD_FIELD_ERROR') throw err;
-  }
-  console.log('Table "order" ready');
 
+  // order line items
   await db.query(`
     CREATE TABLE IF NOT EXISTS order_item (
       id INT AUTO_INCREMENT PRIMARY KEY,
@@ -146,20 +118,18 @@ async function main() {
       product_id INT NOT NULL,
       quantity INT NOT NULL,
       unit_price DECIMAL(10,2) NOT NULL,
-      FOREIGN KEY (order_id) REFERENCES \`order\`(id)
-        ON DELETE CASCADE
-        ON UPDATE CASCADE,
-      FOREIGN KEY (product_id) REFERENCES product(id)
-        ON DELETE RESTRICT
-        ON UPDATE CASCADE
+      CONSTRAINT fk_item_order FOREIGN KEY (order_id)
+        REFERENCES \`order\`(id) ON DELETE CASCADE,
+      CONSTRAINT fk_item_product FOREIGN KEY (product_id)
+        REFERENCES product(id) ON DELETE CASCADE
     )
   `);
-  console.log('Table "order_item" ready');
 
+  console.log('All tables created / ensured successfully');
   await db.end();
-  console.log('Done');
 }
 
 main().catch((err) => {
-  console.error('Setup failed:', err);
+  console.error('Error creating DB:', err);
+  process.exit(1);
 });

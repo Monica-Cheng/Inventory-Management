@@ -1,36 +1,56 @@
-const { query } = require('../db/connection');
+// backend/admin/productRepository.js
 
-async function listProducts(adminId) {
-  const rows = await query(
+const { query, getConnection } = require('../db/connection');
+
+// Add product
+async function addProduct({ adminId, categoryId, name, description, price, total_stock, is_unlimited }) {
+  return await query(
     `
-    SELECT p.id, p.name, p.description, p.quantity, p.category_id, c.name AS category_name
-    FROM product p
-    LEFT JOIN category c ON c.id = p.category_id
-    WHERE p.admin_id = ?
-    ORDER BY p.id DESC
+    INSERT INTO product (admin_id, category_id, name, description, price, total_stock, is_unlimited)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
     `,
-    [adminId]
-  );
-  return rows;
-}
-
-async function createProduct(adminId, categoryId, name, description, quantity) {
-  await query(
-    'INSERT INTO product (admin_id, category_id, name, description, quantity) VALUES (?, ?, ?, ?, ?)',
-    [adminId, categoryId, name, description || null, quantity]
+    [adminId, categoryId || null, name, description, price, total_stock, is_unlimited]
   );
 }
 
-async function updateQuantity(adminId, productId, quantity) {
+async function updateProduct(id, { categoryId, name, description, price, total_stock, is_unlimited }) {
   const result = await query(
-    'UPDATE product SET quantity = ? WHERE id = ? AND admin_id = ?',
-    [quantity, productId, adminId]
+    `
+    UPDATE product
+    SET category_id = ?, name = ?, description = ?, price = ?, total_stock = ?, is_unlimited = ?
+    WHERE id = ?
+    `,
+    [categoryId || null, name, description, price, total_stock, is_unlimited, id]
   );
   return result.affectedRows;
 }
 
+async function deleteProduct(id) {
+  const result = await query(
+    `
+    DELETE FROM product
+    WHERE id = ?
+    `,
+    [id]
+  );
+  return result.affectedRows;
+}
+
+// Get all products for inventory page
+async function listProducts() {
+  return await query(
+    `
+    SELECT p.*, c.name AS category_name
+    FROM product p
+    LEFT JOIN category c ON c.id = p.category_id
+    ORDER BY c.name, p.name
+    `
+  );
+}
+
 module.exports = {
+  addProduct,
+  updateProduct,
+  deleteProduct,
   listProducts,
-  createProduct,
-  updateQuantity,
 };

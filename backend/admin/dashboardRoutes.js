@@ -1,5 +1,5 @@
 const express = require('express');
-const { requireAdmin } = require('./authMiddleware');
+const { requireAdmin } = require('../auth/authMiddleware');
 const { listCategories } = require('./categoryRepository');
 const { listProducts } = require('./productRepository');
 const { query } = require('../db/connection');

@@ -1,0 +1,21 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+  background: #e7f1ff; /* soft blue */
+  color: #1f2933;
+}
+
+button {
+  font-family: inherit;
+}
+
+#root {
+  height: 100vh;
+}

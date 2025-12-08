@@ -1,68 +1,97 @@
-const express = require('express');
-const { requireAdmin } = require('./authMiddleware');
-const { listProducts, createProduct, updateQuantity } = require('./productRepository');
-const { categoryBelongsToAdmin } = require('./categoryRepository');
+// backend/admin/productRoutes.js
 
+const express = require('express');
 const router = express.Router();
 
-router.get('/api/admin/products', requireAdmin, async (req, res) => {
+const { requireAdmin, requireAdminOrStaff } = require('../auth/authMiddleware');
+const { addProduct, updateProduct, deleteProduct, listProducts } = require('./productRepository');
+
+// ADMIN — Create product
+router.post('/', requireAdmin, async (req, res) => {
   try {
-    const rows = await listProducts(req.admin.id);
-    res.json({ items: rows });
-  } catch (err) {
-    console.error('List products failed:', err);
-    res.status(500).json({ error: 'Failed to load products' });
-  }
-});
+    const { categoryId, name, description, price, total_stock, is_unlimited } = req.body;
 
-router.post('/api/admin/products', requireAdmin, async (req, res) => {
-  const { name, description, quantity, category_id } = req.body;
-  if (!name || !String(name).trim()) {
-    return res.status(400).json({ error: 'Product name is required' });
-  }
-  const qty = Number(quantity ?? 0);
-  if (!Number.isFinite(qty) || qty < 0) {
-    return res.status(400).json({ error: 'Quantity must be a non-negative number' });
-  }
-  const categoryId = Number(category_id);
-  if (!Number.isInteger(categoryId) || categoryId <= 0) {
-    return res.status(400).json({ error: 'Valid category_id is required' });
-  }
-
-  try {
-    const belongs = await categoryBelongsToAdmin(req.admin.id, categoryId);
-    if (!belongs) {
-      return res.status(404).json({ error: 'Category not found for this admin' });
-    }
-
-    await createProduct(
-      req.admin.id,
+    await addProduct({
+      adminId: req.admin ? req.admin.id : null,
       categoryId,
-      String(name).trim(),
-      description ? String(description).trim() : null,
-      qty
-    );
-    res.status(201).json({ message: 'Product created' });
+      name,
+      description,
+      price,
+      total_stock,
+      is_unlimited: is_unlimited ? 1 : 0,
+    });
+
+    res.json({ success: true });
   } catch (err) {
-    console.error('Create product failed:', err);
-    res.status(500).json({ error: 'Failed to create product' });
+    console.error('Add product error:', err);
+    res.status(500).json({ error: 'Server error' });
   }
 });
 
-router.patch('/api/admin/products/:id/quantity', requireAdmin, async (req, res) => {
-  const { id } = req.params;
-  const qty = Number(req.body.quantity);
-  if (!Number.isFinite(qty) || qty < 0) {
-    return res.status(400).json({ error: 'Quantity must be a non-negative number' });
+// ADMIN — Update product
+router.put('/:id', requireAdmin, async (req, res) => {
+  const productId = Number(req.params.id);
+  if (!Number.isInteger(productId) || productId <= 0) {
+    return res.status(400).json({ error: 'Invalid product id' });
+  }
+  const { categoryId, name, description, price, total_stock, is_unlimited } = req.body;
+  if (!name || !String(name).trim()) {
+    return res.status(400).json({ error: 'Name is required' });
+  }
+  if (price == null || Number(price) < 0) {
+    return res.status(400).json({ error: 'Price must be >= 0' });
+  }
+  if (!is_unlimited && total_stock != null && Number(total_stock) < 0) {
+    return res.status(400).json({ error: 'Stock must be >= 0' });
   }
 
   try {
-    const affected = await updateQuantity(req.admin.id, Number(id), qty);
-    if (!affected) return res.status(404).json({ error: 'Product not found' });
-    res.json({ message: 'Quantity updated' });
+    const affected = await updateProduct(productId, {
+      categoryId,
+      name,
+      description,
+      price,
+      total_stock,
+      is_unlimited: is_unlimited ? 1 : 0,
+    });
+    if (!affected) {
+      return res.status(404).json({ error: 'Product not found' });
+    }
+    res.json({ success: true });
   } catch (err) {
-    console.error('Update quantity failed:', err);
-    res.status(500).json({ error: 'Failed to update quantity' });
+    console.error('Update product error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// ADMIN — Delete product
+router.delete('/:id', requireAdmin, async (req, res) => {
+  const productId = Number(req.params.id);
+  if (!Number.isInteger(productId) || productId <= 0) {
+    return res.status(400).json({ error: 'Invalid product id' });
+  }
+
+  try {
+    const affected = await deleteProduct(productId);
+    if (!affected) {
+      return res.status(404).json({ error: 'Product not found' });
+    }
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Delete product error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// ADMIN — List products
+// Admin or staff can view product catalog
+router.get('/', requireAdminOrStaff, async (_req, res) => {
+  try {
+    const rows = await listProducts();
+    res.json(rows);
+  } catch (err) {
+    console.error('List product error:', err);
+    res.status(500).json({ error: 'Server error' });
   }
 });
 

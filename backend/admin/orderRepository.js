@@ -1,117 +1,56 @@
-const { pool, query } = require('../db/connection');
+// backend/admin/orderRepository.js
 
-async function listStaff(adminId) {
-  const rows = await query(
-    'SELECT id, name, phone_number FROM staff WHERE admin_id = ? ORDER BY name ASC',
-    [adminId]
-  );
-  return rows;
-}
+const { query, getConnection } = require('../db/connection');
+const { applySale, adjustSale } = require('./deploymentRepository');
 
-async function listProductsForAdmin(adminId) {
-  const rows = await query(
-    'SELECT id, name, quantity FROM product WHERE admin_id = ? ORDER BY name ASC',
-    [adminId]
-  );
-  return rows;
-}
+// Create order + apply stock/sale updates
+async function createOrder({ adminId, operatorId, items, paymentMethod }) {
+  const conn = await getConnection();
 
-async function listOrdersWithItems(adminId, limit = 20) {
-  const orders = await query(
-    `
-    SELECT o.id, o.order_date, o.status, o.operator_id, s.name AS operator_name
-    FROM \`order\` o
-    LEFT JOIN staff s ON s.id = o.operator_id
-    WHERE o.admin_id = ?
-    ORDER BY o.id DESC
-    LIMIT ?
-    `,
-    [adminId, limit]
-  );
-
-  if (!orders.length) return [];
-
-  const orderIds = orders.map((o) => o.id);
-  const placeholders = orderIds.map(() => '?').join(',');
-  const items = await query(
-    `
-    SELECT oi.order_id, oi.product_id, oi.quantity, oi.unit_price, p.name AS product_name
-    FROM order_item oi
-    JOIN product p ON p.id = oi.product_id
-    WHERE oi.order_id IN (${placeholders})
-    `,
-    orderIds
-  );
-
-  const grouped = new Map();
-  for (const order of orders) {
-    grouped.set(order.id, { ...order, items: [] });
-  }
-  for (const item of items) {
-    const target = grouped.get(item.order_id);
-    if (target) target.items.push(item);
-  }
-
-  return Array.from(grouped.values());
-}
-
-async function createOrderWithItems({ adminId, operatorId, orderDate, items }) {
-  const operatorValue = operatorId || null;
-  const conn = await pool.getConnection();
   try {
     await conn.beginTransaction();
 
-    let orderId;
-    if (orderDate) {
-      const [res] = await conn.execute(
-        'INSERT INTO `order` (admin_id, operator_id, order_date) VALUES (?, ?, ?)',
-        [adminId, operatorValue, orderDate]
-      );
-      orderId = res.insertId;
-    } else {
-      const [res] = await conn.execute('INSERT INTO `order` (admin_id, operator_id) VALUES (?, ?)', [
-        adminId,
-        operatorValue,
-      ]);
-      orderId = res.insertId;
-    }
+    // Create order header
+    const [res] = await conn.query(
+      `
+      INSERT INTO \`order\` (admin_id, operator_id, payment_method)
+      VALUES (?, ?, ?)
+      `,
+      [adminId, operatorId || null, paymentMethod || null]
+    );
 
+    const orderId = res.insertId;
+
+    // Process each item
     for (const item of items) {
-      const productId = Number(item.product_id);
-      const qty = Number(item.quantity);
-      if (!Number.isInteger(productId) || productId <= 0 || !Number.isFinite(qty) || qty <= 0) {
-        throw new Error('INVALID_ITEM');
-      }
+      const { product_id, quantity } = item;
 
-      const [products] = await conn.execute(
-        'SELECT quantity FROM product WHERE id = ? AND admin_id = ? LIMIT 1',
-        [productId, adminId]
+      // Get product price + current stock
+      const [[p]] = await conn.query(
+        `
+        SELECT id, price, total_stock
+        FROM product
+        WHERE id = ?
+        FOR UPDATE
+        `,
+        [product_id]
       );
-      if (!products.length) {
-        const err = new Error('PRODUCT_NOT_FOUND');
-        err.productId = productId;
-        throw err;
-      }
-      const currentQty = Number(products[0].quantity);
-      if (currentQty < qty) {
-        const err = new Error('INSUFFICIENT_STOCK');
-        err.productId = productId;
-        err.available = currentQty;
-        throw err;
+
+      if (!p) {
+        throw new Error(`PRODUCT_NOT_FOUND_${product_id}`);
       }
 
-      // deduct stock
-      await conn.execute('UPDATE product SET quantity = quantity - ? WHERE id = ? AND admin_id = ?', [
-        qty,
-        productId,
-        adminId,
-      ]);
-
-      // store line item, unit_price default 0
-      await conn.execute(
-        'INSERT INTO order_item (order_id, product_id, quantity, unit_price) VALUES (?, ?, ?, ?)',
-        [orderId, productId, qty, 0]
+      // Insert order item
+      await conn.query(
+        `
+        INSERT INTO order_item (order_id, product_id, quantity, unit_price)
+        VALUES (?, ?, ?, ?)
+        `,
+        [orderId, product_id, quantity, p.price]
       );
+
+      // Apply stock + deployment updates using same transaction
+      await applySale(product_id, quantity, conn);
     }
 
     await conn.commit();
@@ -124,9 +63,231 @@ async function createOrderWithItems({ adminId, operatorId, orderDate, items }) {
   }
 }
 
+async function listOrders() {
+  return query(
+    `
+    SELECT 
+      o.id,
+      o.admin_id,
+      o.operator_id,
+      o.created_at,
+      o.payment_method,
+      o.status,
+      COALESCE(SUM(oi.quantity * oi.unit_price), 0) AS total,
+      COUNT(oi.id) AS item_count
+    FROM \`order\` o
+    LEFT JOIN order_item oi ON oi.order_id = o.id
+    GROUP BY o.id
+    ORDER BY o.created_at DESC
+    `
+  );
+}
+
+async function getOrderWithItems(orderId) {
+  const orderRows = await query(
+    `
+    SELECT 
+      o.id,
+      o.admin_id,
+      o.operator_id,
+      o.created_at,
+      o.payment_method,
+      o.status,
+      COALESCE(SUM(oi.quantity * oi.unit_price), 0) AS total
+    FROM \`order\` o
+    LEFT JOIN order_item oi ON oi.order_id = o.id
+    WHERE o.id = ?
+    GROUP BY o.id
+    LIMIT 1
+    `,
+    [orderId]
+  );
+  const order = Array.isArray(orderRows) ? orderRows[0] : null;
+  const items = await query(
+    `
+    SELECT 
+      oi.id,
+      oi.product_id,
+      p.name AS product_name,
+      oi.quantity,
+      oi.unit_price
+    FROM order_item oi
+    LEFT JOIN product p ON p.id = oi.product_id
+    WHERE oi.order_id = ?
+    `,
+    [orderId]
+  );
+  const logs = await query(
+    `
+    CREATE TABLE IF NOT EXISTS order_log (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      order_id INT NOT NULL,
+      actor_role VARCHAR(20) NULL,
+      actor_id INT NULL,
+      action VARCHAR(50) NOT NULL,
+      detail TEXT NULL,
+      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      INDEX idx_order (order_id)
+    )
+    `
+  ).then(() =>
+    query(
+      `
+      SELECT id, actor_role, actor_id, action, detail, created_at
+      FROM order_log
+      WHERE order_id = ?
+      ORDER BY created_at DESC
+      `,
+      [orderId]
+    )
+  );
+  return order
+    ? { ...order, items: Array.isArray(items) ? items : [], logs: Array.isArray(logs) ? logs : [] }
+    : null;
+}
+
+async function updateOrderStatus(orderId, status) {
+  const allowed = ['PENDING', 'PAID', 'CANCELLED'];
+  if (!allowed.includes(status)) throw new Error('INVALID_STATUS');
+  const result = await query(
+    `UPDATE \`order\` SET status = ? WHERE id = ?`,
+    [status, orderId]
+  );
+  return result.affectedRows;
+}
+
 module.exports = {
-  listStaff,
-  listProductsForAdmin,
-  createOrderWithItems,
-  listOrdersWithItems,
+  createOrder,
+  listOrders,
+  getOrderWithItems,
+  updateOrderStatus,
+  updateOrder,
 };
+
+// Update existing order: replace items, adjust stock by delta
+async function updateOrder({ orderId, adminId, operatorId, items, paymentMethod, actorName, actorRole }) {
+  const conn = await getConnection();
+
+  try {
+    await conn.beginTransaction();
+
+    // Load current items
+    const [currentItems] = await conn.query(
+      `SELECT product_id, quantity FROM order_item WHERE order_id = ?`,
+      [orderId]
+    );
+    const currentMap = new Map();
+    currentItems.forEach((it) => currentMap.set(it.product_id, Number(it.quantity)));
+
+    const newMap = new Map();
+    items.forEach((it) => newMap.set(it.product_id, Number(it.quantity)));
+    const nameMap = new Map();
+
+    // Calculate deltas
+    const deltas = new Map();
+    newMap.forEach((qty, pid) => {
+      const oldQty = currentMap.get(pid) || 0;
+      deltas.set(pid, qty - oldQty);
+    });
+    currentMap.forEach((oldQty, pid) => {
+      if (!newMap.has(pid)) {
+        deltas.set(pid, -oldQty);
+      }
+    });
+
+    // Clear old items
+    await conn.query(`DELETE FROM order_item WHERE order_id = ?`, [orderId]);
+
+    // Insert new items and adjust stock by delta
+    for (const item of items) {
+      const { product_id, quantity } = item;
+      const [[p]] = await conn.query(
+        `
+        SELECT id, price
+        FROM product
+        WHERE id = ?
+        `,
+        [product_id]
+      );
+      if (!p) throw new Error(`PRODUCT_NOT_FOUND_${product_id}`);
+      nameMap.set(product_id, p.name);
+
+      await conn.query(
+        `
+        INSERT INTO order_item (order_id, product_id, quantity, unit_price)
+        VALUES (?, ?, ?, ?)
+        `,
+        [orderId, product_id, quantity, p.price]
+      );
+    }
+
+    // Apply deltas to stock/deployment
+    for (const [pid, delta] of deltas.entries()) {
+      await adjustSale(pid, delta, conn);
+      if (!nameMap.has(pid)) {
+        const [[row]] = await conn.query(`SELECT name FROM product WHERE id = ?`, [pid]);
+        if (row) nameMap.set(pid, row.name);
+      }
+    }
+
+    // Update header
+    await conn.query(
+      `
+      UPDATE \`order\`
+      SET payment_method = ?, operator_id = ?
+      WHERE id = ?
+      `,
+      [paymentMethod || null, operatorId || null, orderId]
+    );
+
+    // log change (human-friendly)
+    const changes = Array.from(deltas.entries())
+      .filter(([, delta]) => delta !== 0)
+      .map(([pid, delta]) => {
+        const oldQty = currentMap.get(pid) || 0;
+        const newQty = newMap.get(pid) || 0;
+        return {
+          product_id: pid,
+          product_name: nameMap.get(pid) || `#${pid}`,
+          from: oldQty,
+          to: newQty,
+          delta,
+        };
+      });
+    const detail = {
+      changes,
+      paymentMethod,
+      actorName: actorName || null,
+      actorRole: actorRole || null,
+    };
+    await conn.query(
+      `
+      CREATE TABLE IF NOT EXISTS order_log (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        order_id INT NOT NULL,
+        actor_role VARCHAR(20) NULL,
+        actor_id INT NULL,
+        action VARCHAR(50) NOT NULL,
+        detail TEXT NULL,
+        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_order (order_id)
+      )
+      `
+    );
+    await conn.query(
+      `
+      INSERT INTO order_log (order_id, actor_role, actor_id, action, detail)
+      VALUES (?, ?, ?, 'UPDATE_ORDER', ?)
+      `,
+      [orderId, actorRole || (operatorId ? 'staff' : 'admin'), operatorId || adminId || null, JSON.stringify(detail)]
+    );
+
+    await conn.commit();
+    return orderId;
+  } catch (err) {
+    await conn.rollback();
+    throw err;
+  } finally {
+    conn.release();
+  }
+}
