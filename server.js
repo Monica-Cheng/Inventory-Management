@@ -17,10 +17,11 @@ const deploymentListRoutes = require('./backend/admin/deploymentListRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+const CLIENT_BUILD = path.join(__dirname, 'client', 'build');
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(CLIENT_BUILD));
 app.use('/api/deployments', deploymentListRoutes);
 
 // OLD ROUTES (HTML-based admin)
@@ -35,6 +36,11 @@ app.use(adminStaffRoutes);
 app.use('/api/deployments', deploymentRoutes);
 app.use('/api/orders', newOrderRoutes);
 app.use('/api/products', newProductRoutes);
+
+// Serve React build for all non-API routes
+app.get(/^\/(?!api).*/, (_req, res) => {
+  res.sendFile(path.join(CLIENT_BUILD, 'index.html'));
+});
 
 // protect admin dashboard page
 app.get(
